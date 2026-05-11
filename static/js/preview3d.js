@@ -99,18 +99,18 @@ class WiseBoxPreview {
     };
     const lidEdges = { top: "male", right: "male", bottom: "male", left: "male" };
 
-    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, -depth / 2, materials.body, joinery, frontEdges));
-    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, depth / 2, materials.body, joinery, frontEdges));
-    this.group.add(this.makePanel("yz", depth, height, thickness, -width / 2, 0, 0, materials.body, joinery, sideEdges));
-    this.group.add(this.makePanel("yz", depth, height, thickness, width / 2, 0, 0, materials.body, joinery, sideEdges));
-    this.group.add(this.makePanel("xz", width, depth, thickness, 0, -height / 2, 0, materials.body, joinery, lidEdges));
+    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, -(depth / 2 - thickness / 2), materials.body, joinery, frontEdges));
+    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, depth / 2 - thickness / 2, materials.body, joinery, frontEdges));
+    this.group.add(this.makePanel("yz", depth, height, thickness, -(width / 2 - thickness / 2), 0, 0, materials.body, joinery, sideEdges));
+    this.group.add(this.makePanel("yz", depth, height, thickness, width / 2 - thickness / 2, 0, 0, materials.body, joinery, sideEdges));
+    this.group.add(this.makePanel("xz", width, depth, thickness, 0, -(height / 2 - thickness / 2), 0, materials.body, joinery, lidEdges));
 
     if (!preview.openTop) {
-      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2, 0, materials.lid, joinery, lidEdges));
+      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 - thickness / 2, 0, materials.lid, joinery, lidEdges));
     }
 
     if (preview.boxType === "lidded_box") {
-      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 + thickness * 3.0, 0, materials.lid, joinery, lidEdges));
+      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 + thickness * 2.6, 0, materials.lid, joinery, lidEdges));
     }
 
     if (preview.boxType === "drawer") {
@@ -133,10 +133,10 @@ class WiseBoxPreview {
         left: "male",
       };
       const shellBottomEdges = { top: "male", right: "male", bottom: "male", left: "male" };
-      this.group.add(this.makePanel("xy", shellWidth, shellHeight, shellThickness, offset, 0, -shellDepth / 2, materials.shell, shellJoinery, shellEdges));
-      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset - shellWidth / 2, 0, 0, materials.shell, shellJoinery, shellSideEdges));
-      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset + shellWidth / 2, 0, 0, materials.shell, shellJoinery, shellSideEdges));
-      this.group.add(this.makePanel("xz", shellWidth, shellDepth, shellThickness, offset, -shellHeight / 2, 0, materials.shell, shellJoinery, shellBottomEdges));
+      this.group.add(this.makePanel("xy", shellWidth, shellHeight, shellThickness, offset, 0, -(shellDepth / 2 - shellThickness / 2), materials.shell, shellJoinery, shellEdges));
+      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset - (shellWidth / 2 - shellThickness / 2), 0, 0, materials.shell, shellJoinery, shellSideEdges));
+      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset + (shellWidth / 2 - shellThickness / 2), 0, 0, materials.shell, shellJoinery, shellSideEdges));
+      this.group.add(this.makePanel("xz", shellWidth, shellDepth, shellThickness, offset, -(shellHeight / 2 - shellThickness / 2), 0, materials.shell, shellJoinery, shellBottomEdges));
       this.group.position.x = -offset * 0.5;
     } else {
       this.group.position.x = 0;
@@ -348,26 +348,30 @@ class WiseBoxPreview {
 
     const teeth = this.countJoinerySegments(length, joinery.pitch);
     const span = length / teeth;
-    const offset = role === "male" ? joinery.depth : -joinery.depth;
 
     let cursor = new THREE.Vector2(start.x, start.y);
 
     for (let index = 0; index < teeth; index += 1) {
       const next = new THREE.Vector2(start.x + axis.x * span * (index + 1), start.y + axis.y * span * (index + 1));
-      if (index % 2 === 0) {
+      const cutIn =
+        role === "female"
+          ? index % 2 === 0
+          : index % 2 === 1;
+
+      if (cutIn) {
         if (joinery.type === "dovetail") {
           const p1 = new THREE.Vector2(
-            cursor.x + axis.x * span * 0.18 + normal.x * offset,
-            cursor.y + axis.y * span * 0.18 + normal.y * offset
+            cursor.x + axis.x * span * 0.18 - normal.x * joinery.depth,
+            cursor.y + axis.y * span * 0.18 - normal.y * joinery.depth
           );
           const p2 = new THREE.Vector2(
-            cursor.x + axis.x * span * 0.82 + normal.x * offset,
-            cursor.y + axis.y * span * 0.82 + normal.y * offset
+            cursor.x + axis.x * span * 0.82 - normal.x * joinery.depth,
+            cursor.y + axis.y * span * 0.82 - normal.y * joinery.depth
           );
           segments.push(p1, p2, next);
         } else {
-          const p1 = new THREE.Vector2(cursor.x + normal.x * offset, cursor.y + normal.y * offset);
-          const p2 = new THREE.Vector2(next.x + normal.x * offset, next.y + normal.y * offset);
+          const p1 = new THREE.Vector2(cursor.x - normal.x * joinery.depth, cursor.y - normal.y * joinery.depth);
+          const p2 = new THREE.Vector2(next.x - normal.x * joinery.depth, next.y - normal.y * joinery.depth);
           segments.push(p1, p2, next);
         }
       } else {
