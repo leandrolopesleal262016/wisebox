@@ -15,9 +15,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const preview = new window.WiseBoxPreview("previewCanvas");
   const presets = {
-    mdf3: { thickness: 3, kerf: 0.12, tolerance: 0.1 },
-    mdf6: { thickness: 6, kerf: 0.16, tolerance: 0.15 },
-    acrylic3: { thickness: 3, kerf: 0.08, tolerance: 0.08 },
+    mdf3: { materialType: "mdf", thickness: 3, kerf: 0.12, tolerance: 0.1 },
+    mdf6: { materialType: "mdf", thickness: 6, kerf: 0.16, tolerance: 0.15 },
+    acrylic3: { materialType: "acrylic", thickness: 3, kerf: 0.08, tolerance: 0.08 },
+  };
+  const materialLabels = {
+    mdf: "MDF",
+    plywood: "Compensado",
+    acrylic: "Acrilico",
+    cardboard: "Papelao",
   };
 
   let previewTimer = null;
@@ -34,6 +40,7 @@ window.addEventListener("DOMContentLoaded", () => {
       kerf: formData.get("kerf"),
       tolerance: formData.get("tolerance"),
       jointType: formData.get("jointType"),
+      materialType: formData.get("materialType"),
       unit: formData.get("unit"),
       exportFormat: overrideFormat || formData.get("exportFormat"),
     };
@@ -49,8 +56,8 @@ window.addEventListener("DOMContentLoaded", () => {
     const volumeCm3 = (previewData.width * previewData.height * previewData.depth) / 1000;
     volumeStat.textContent = `${volumeCm3.toFixed(1)} cm3`;
     panelStat.textContent = String(panels || estimatePanelCount(previewData.boxType));
-    materialStat.textContent = `${previewData.thickness.toFixed(2)} mm`;
-    summaryText.textContent = `${previewData.boxTypeLabel} com ${previewData.jointTypeLabel.toLowerCase()}, ${previewData.width.toFixed(0)} x ${previewData.height.toFixed(0)} x ${previewData.depth.toFixed(0)} mm.`;
+    materialStat.textContent = `${materialLabels[previewData.materialType] || "Material"} ${previewData.thickness.toFixed(2)} mm`;
+    summaryText.textContent = `${previewData.boxTypeLabel} em ${(materialLabels[previewData.materialType] || "material").toLowerCase()}, com ${previewData.jointTypeLabel.toLowerCase()}, ${previewData.width.toFixed(0)} x ${previewData.height.toFixed(0)} x ${previewData.depth.toFixed(0)} mm.`;
   }
 
   function estimatePanelCount(boxType) {
@@ -85,8 +92,9 @@ window.addEventListener("DOMContentLoaded", () => {
   async function refreshPreview() {
     try {
       const data = await postJson("/api/preview-data", getPayload());
-      preview.setData(data.preview);
-      updateStats(data.preview);
+      const previewData = { ...data.preview, materialType: getPayload().materialType };
+      preview.setData(previewData);
+      updateStats(previewData);
       setStatus("Preview atualizado com sucesso.", "is-success");
     } catch (error) {
       setStatus(error.message, "is-error");
@@ -96,10 +104,12 @@ window.addEventListener("DOMContentLoaded", () => {
   async function generateFile(requestedFormat, downloadAfterCreate) {
     try {
       setStatus(`Gerando ${requestedFormat.toUpperCase()}...`);
-      const data = await postJson("/api/generate", getPayload(requestedFormat));
+      const payload = getPayload(requestedFormat);
+      const data = await postJson("/api/generate", payload);
       latestDownloads[requestedFormat] = data.downloadUrl;
-      preview.setData(data.preview);
-      updateStats(data.preview, data.panels.length);
+      const previewData = { ...data.preview, materialType: payload.materialType };
+      preview.setData(previewData);
+      updateStats(previewData, data.panels.length);
       fileHint.textContent = `Ultimo arquivo: ${data.filename} (${data.engine}).`;
       setStatus(`Arquivo ${requestedFormat.toUpperCase()} gerado com sucesso.`, "is-success");
       if (downloadAfterCreate) {
@@ -133,6 +143,7 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("boxType").value = "closed_box";
     document.getElementById("exportFormat").value = "svg";
     document.getElementById("jointType").value = "finger";
+    document.getElementById("materialType").value = "mdf";
     document.getElementById("width").value = "180";
     document.getElementById("height").value = "120";
     document.getElementById("depth").value = "140";
@@ -147,6 +158,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-preset]").forEach((button) => {
     button.addEventListener("click", () => {
       const preset = presets[button.dataset.preset];
+      document.getElementById("materialType").value = preset.materialType;
       document.getElementById("thickness").value = preset.thickness;
       document.getElementById("kerf").value = preset.kerf;
       document.getElementById("tolerance").value = preset.tolerance;

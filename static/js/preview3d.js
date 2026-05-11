@@ -1,8 +1,6 @@
 import * as THREE from "../vendor/three/three.module.min.js";
 import { OrbitControls } from "../vendor/three/controls/OrbitControls.js";
 
-const SURFACE_EPSILON = 0.005;
-
 class WiseBoxPreview {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
@@ -24,19 +22,21 @@ class WiseBoxPreview {
     this.group = new THREE.Group();
     this.scene.add(this.group);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 1.3);
-    const keyLight = new THREE.DirectionalLight(0xffd7a1, 1.1);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.28);
+    const keyLight = new THREE.DirectionalLight(0xffe1b8, 1.3);
     keyLight.position.set(12, 14, 8);
-    const rimLight = new THREE.DirectionalLight(0x9cd6ff, 0.7);
-    rimLight.position.set(-8, 9, -10);
-    this.scene.add(ambient, keyLight, rimLight);
+    const fillLight = new THREE.DirectionalLight(0x9bcfff, 0.68);
+    fillLight.position.set(-8, 9, -10);
+    const bounceLight = new THREE.DirectionalLight(0xffffff, 0.28);
+    bounceLight.position.set(0, -6, 0);
+    this.scene.add(ambient, keyLight, fillLight, bounceLight);
 
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(12, 48),
       new THREE.MeshStandardMaterial({
         color: 0x1d3a46,
-        metalness: 0.1,
-        roughness: 0.95,
+        metalness: 0.08,
+        roughness: 0.96,
         transparent: true,
         opacity: 0.55,
       })
@@ -83,245 +83,320 @@ class WiseBoxPreview {
     const depth = preview.depth * scale;
     const thickness = Math.max(preview.thickness * scale, 0.05);
     const joinery = this.buildJoinerySpec(preview, thickness);
+    const materials = this.buildMaterialPack(preview.materialType || "mdf");
 
-    const bodyMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xefc17a,
-      transparent: true,
-      opacity: 0.68,
-      roughness: 0.62,
-      metalness: 0.02,
-      clearcoat: 0.12,
-    });
+    const frontEdges = {
+      top: preview.openTop ? "plain" : "female",
+      right: "female",
+      bottom: "female",
+      left: "female",
+    };
+    const sideEdges = {
+      top: preview.openTop ? "plain" : "female",
+      right: "male",
+      bottom: "female",
+      left: "male",
+    };
+    const lidEdges = { top: "male", right: "male", bottom: "male", left: "male" };
 
-    const lidMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x7ed3a8,
-      transparent: true,
-      opacity: 0.5,
-      roughness: 0.55,
-      metalness: 0.05,
-    });
-
-    const shellMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x82b6ff,
-      transparent: true,
-      opacity: 0.42,
-      roughness: 0.5,
-    });
-
-    this.group.add(this.makePanel(width, thickness, depth, 0, -height / 2, 0, bodyMaterial, joinery));
-    this.group.add(this.makePanel(width, height, thickness, 0, 0, -depth / 2, bodyMaterial, joinery));
-    this.group.add(this.makePanel(width, height, thickness, 0, 0, depth / 2, bodyMaterial, joinery));
-    this.group.add(this.makePanel(thickness, height, depth, -width / 2, 0, 0, bodyMaterial, joinery));
-    this.group.add(this.makePanel(thickness, height, depth, width / 2, 0, 0, bodyMaterial, joinery));
+    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, -depth / 2, materials.body, joinery, frontEdges));
+    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, depth / 2, materials.body, joinery, frontEdges));
+    this.group.add(this.makePanel("yz", depth, height, thickness, -width / 2, 0, 0, materials.body, joinery, sideEdges));
+    this.group.add(this.makePanel("yz", depth, height, thickness, width / 2, 0, 0, materials.body, joinery, sideEdges));
+    this.group.add(this.makePanel("xz", width, depth, thickness, 0, -height / 2, 0, materials.body, joinery, lidEdges));
 
     if (!preview.openTop) {
-      this.group.add(this.makePanel(width, thickness, depth, 0, height / 2, 0, lidMaterial, joinery));
+      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2, 0, materials.lid, joinery, lidEdges));
     }
 
     if (preview.boxType === "lidded_box") {
-      const liftedLid = this.makePanel(width, thickness, depth, 0, height / 2 + thickness * 2.8, 0, lidMaterial, joinery);
-      this.group.add(liftedLid);
+      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 + thickness * 3.0, 0, materials.lid, joinery, lidEdges));
     }
 
     if (preview.boxType === "drawer") {
-      const shellThickness = thickness * 0.9;
-      const shellWidth = width + shellThickness * 2.4;
+      const shellThickness = thickness * 0.92;
+      const shellWidth = width + shellThickness * 2.3;
       const shellHeight = height + shellThickness * 1.4;
       const shellDepth = depth + shellThickness * 1.4;
       const offset = width * 0.22;
-      const drawerJoinery = this.buildJoinerySpec(preview, shellThickness);
-      this.group.add(this.makePanel(shellWidth, shellThickness, shellDepth, offset, -shellHeight / 2, 0, shellMaterial, drawerJoinery));
-      this.group.add(this.makePanel(shellWidth, shellHeight, shellThickness, offset, 0, -shellDepth / 2, shellMaterial, drawerJoinery));
-      this.group.add(this.makePanel(shellWidth, shellHeight, shellThickness, offset, 0, shellDepth / 2, shellMaterial, drawerJoinery));
-      this.group.add(this.makePanel(shellThickness, shellHeight, shellDepth, offset - shellWidth / 2, 0, 0, shellMaterial, drawerJoinery));
-      this.group.add(this.makePanel(shellThickness, shellHeight, shellDepth, offset + shellWidth / 2, 0, 0, shellMaterial, drawerJoinery));
-      this.group.position.x = -offset * 0.55;
+      const shellJoinery = this.buildJoinerySpec(preview, shellThickness);
+      const shellEdges = {
+        top: "plain",
+        right: "female",
+        bottom: "female",
+        left: "female",
+      };
+      const shellSideEdges = {
+        top: "plain",
+        right: "male",
+        bottom: "female",
+        left: "male",
+      };
+      const shellBottomEdges = { top: "male", right: "male", bottom: "male", left: "male" };
+      this.group.add(this.makePanel("xy", shellWidth, shellHeight, shellThickness, offset, 0, -shellDepth / 2, materials.shell, shellJoinery, shellEdges));
+      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset - shellWidth / 2, 0, 0, materials.shell, shellJoinery, shellSideEdges));
+      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset + shellWidth / 2, 0, 0, materials.shell, shellJoinery, shellSideEdges));
+      this.group.add(this.makePanel("xz", shellWidth, shellDepth, shellThickness, offset, -shellHeight / 2, 0, materials.shell, shellJoinery, shellBottomEdges));
+      this.group.position.x = -offset * 0.5;
     } else {
       this.group.position.x = 0;
     }
 
     if (preview.isFlex) {
-      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x13232e, transparent: true, opacity: 0.5 });
+      const slotMaterial = new THREE.LineBasicMaterial({ color: 0x21313c, transparent: true, opacity: 0.75 });
       for (let i = -3; i <= 3; i += 1) {
         const points = [
-          new THREE.Vector3(-width / 2 + width * 0.1 + i * width * 0.1, -height / 2 + thickness, depth / 2 + 0.01),
-          new THREE.Vector3(-width / 2 + width * 0.1 + i * width * 0.1, height / 2 - thickness, depth / 2 + 0.01),
+          new THREE.Vector3(-width / 2 + width * 0.1 + i * width * 0.1, -height / 2 + thickness, depth / 2 + 0.001),
+          new THREE.Vector3(-width / 2 + width * 0.1 + i * width * 0.1, height / 2 - thickness, depth / 2 + 0.001),
         ];
-        this.group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMaterial.clone()));
+        this.group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), slotMaterial.clone()));
       }
     }
 
     const maxDim = Math.max(width, height, depth);
-    this.camera.position.set(maxDim * 1.45, maxDim * 1.1, maxDim * 1.55);
+    this.camera.position.set(maxDim * 1.48, maxDim * 1.14, maxDim * 1.58);
     this.controls.target.set(0, 0, 0);
     this.controls.update();
   }
 
   buildJoinerySpec(preview, thickness) {
-    const joineryDepth = Math.min(Math.max(thickness * 0.95, 0.05), 0.24);
-    const edgeInset = Math.max(joineryDepth * 0.4, 0.015);
-    const joineryPitch = Math.max(thickness * 3.2 + preview.kerf * 0.04, 0.24);
+    const joineryDepth = Math.min(Math.max(thickness * 0.96, 0.05), 0.26);
+    const edgeInset = Math.max(joineryDepth * 0.26, 0.01);
+    const pitch = Math.max(thickness * 3.4 + preview.kerf * 0.04, 0.24);
     return {
       type: preview.jointType,
       depth: joineryDepth,
       edgeInset,
-      pitch: joineryPitch,
+      pitch,
     };
   }
 
-  makePanel(width, height, depth, x, y, z, material, joinery) {
-    const panelGroup = new THREE.Group();
-    panelGroup.position.set(x, y, z);
+  buildMaterialPack(materialType) {
+    const materials = {
+      mdf: {
+        body: new THREE.MeshPhysicalMaterial({
+          color: 0xb8945d,
+          roughness: 0.9,
+          metalness: 0.02,
+          clearcoat: 0.04,
+        }),
+        lid: new THREE.MeshPhysicalMaterial({
+          color: 0xc8a26c,
+          roughness: 0.86,
+          metalness: 0.02,
+          clearcoat: 0.04,
+        }),
+        shell: new THREE.MeshPhysicalMaterial({
+          color: 0xa98454,
+          roughness: 0.92,
+          metalness: 0.02,
+        }),
+      },
+      plywood: {
+        body: new THREE.MeshPhysicalMaterial({
+          color: 0xc89b63,
+          roughness: 0.8,
+          metalness: 0.02,
+          clearcoat: 0.08,
+        }),
+        lid: new THREE.MeshPhysicalMaterial({
+          color: 0xd8ac74,
+          roughness: 0.78,
+          metalness: 0.02,
+          clearcoat: 0.08,
+        }),
+        shell: new THREE.MeshPhysicalMaterial({
+          color: 0xb98d57,
+          roughness: 0.82,
+          metalness: 0.02,
+        }),
+      },
+      acrylic: {
+        body: new THREE.MeshPhysicalMaterial({
+          color: 0x9ad9ff,
+          roughness: 0.08,
+          metalness: 0.0,
+          transmission: 0.72,
+          thickness: 0.45,
+          transparent: true,
+          opacity: 0.9,
+          clearcoat: 0.9,
+          ior: 1.46,
+        }),
+        lid: new THREE.MeshPhysicalMaterial({
+          color: 0xb3e5ff,
+          roughness: 0.06,
+          metalness: 0.0,
+          transmission: 0.78,
+          thickness: 0.45,
+          transparent: true,
+          opacity: 0.92,
+          clearcoat: 1.0,
+          ior: 1.46,
+        }),
+        shell: new THREE.MeshPhysicalMaterial({
+          color: 0x7dcaf8,
+          roughness: 0.08,
+          metalness: 0.0,
+          transmission: 0.62,
+          thickness: 0.4,
+          transparent: true,
+          opacity: 0.86,
+          clearcoat: 0.9,
+          ior: 1.46,
+        }),
+      },
+      cardboard: {
+        body: new THREE.MeshPhysicalMaterial({
+          color: 0x8e6c45,
+          roughness: 0.97,
+          metalness: 0.01,
+        }),
+        lid: new THREE.MeshPhysicalMaterial({
+          color: 0xa37a4f,
+          roughness: 0.97,
+          metalness: 0.01,
+        }),
+        shell: new THREE.MeshPhysicalMaterial({
+          color: 0x7d5d39,
+          roughness: 0.98,
+          metalness: 0.01,
+        }),
+      },
+    };
 
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material.clone());
-    panelGroup.add(mesh);
-
-    const overlays = this.createJoineryOverlay(width, height, depth, joinery);
-    overlays.forEach((overlay) => panelGroup.add(overlay));
-
-    return panelGroup;
+    return materials[materialType] || materials.mdf;
   }
 
-  createJoineryOverlay(width, height, depth, joinery) {
-    if (joinery.type === "plain") {
-      return [];
-    }
+  makePanel(plane, width, height, thickness, x, y, z, material, joinery, edges) {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
 
-    const axes = [
-      { key: "x", size: width },
-      { key: "y", size: height },
-      { key: "z", size: depth },
-    ].sort((left, right) => left.size - right.size);
-
-    const thinAxis = axes[0].key;
-    const material = new THREE.LineBasicMaterial({
-      color: joinery.type === "dovetail" ? 0x1f3442 : 0x13232e,
-      transparent: true,
-      opacity: 0.92,
+    const shape = this.buildPanelShape(width, height, joinery, edges);
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: thickness,
+      bevelEnabled: false,
+      curveSegments: 1,
+      steps: 1,
     });
+    geometry.translate(0, 0, -thickness / 2);
 
-    if (thinAxis === "z") {
-      return this.createPlaneJoinery({
-        plane: "xy",
-        width,
-        height,
-        offset: depth / 2 + SURFACE_EPSILON,
-        mirrorOffset: -(depth / 2 + SURFACE_EPSILON),
-        material,
-        joinery,
-      });
+    if (plane === "xz") {
+      geometry.rotateX(-Math.PI / 2);
+    } else if (plane === "yz") {
+      geometry.rotateY(Math.PI / 2);
     }
 
-    if (thinAxis === "y") {
-      return this.createPlaneJoinery({
-        plane: "xz",
-        width,
-        height: depth,
-        offset: height / 2 + SURFACE_EPSILON,
-        mirrorOffset: -(height / 2 + SURFACE_EPSILON),
-        material,
-        joinery,
-      });
-    }
+    geometry.computeVertexNormals();
 
-    return this.createPlaneJoinery({
-      plane: "yz",
-      width: depth,
-      height,
-      offset: width / 2 + SURFACE_EPSILON,
-      mirrorOffset: -(width / 2 + SURFACE_EPSILON),
-      material,
-      joinery,
-    });
+    const mesh = new THREE.Mesh(geometry, material.clone());
+    group.add(mesh);
+
+    const edgesGeometry = new THREE.EdgesGeometry(geometry, 20);
+    const edgeLines = new THREE.LineSegments(
+      edgesGeometry,
+      new THREE.LineBasicMaterial({
+        color: material.color.clone().offsetHSL(0, 0, -0.28),
+        transparent: material.transparent || false,
+        opacity: material.transparent ? 0.9 : 1,
+      })
+    );
+    group.add(edgeLines);
+
+    return group;
   }
 
-  createPlaneJoinery({ plane, width, height, offset, mirrorOffset, material, joinery }) {
-    const overlays = [];
-    const edgePaths = this.buildEdgeProfiles(width, height, joinery);
-
-    for (const faceOffset of [offset, mirrorOffset]) {
-      for (const path of edgePaths) {
-        const points = path.map((point) => this.mapPointToPlane(plane, point.x, point.y, faceOffset));
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        overlays.push(new THREE.Line(geometry, material.clone()));
-      }
+  buildPanelShape(width, height, joinery, edges) {
+    const points = this.buildPanelOutline(width, height, joinery, edges);
+    const shape = new THREE.Shape();
+    shape.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) {
+      shape.lineTo(points[index].x, points[index].y);
     }
-
-    return overlays;
+    shape.closePath();
+    return shape;
   }
 
-  buildEdgeProfiles(width, height, joinery) {
-    const inset = Math.min(joinery.edgeInset, width * 0.12, height * 0.12);
-    return [
-      this.buildHorizontalEdge(width, height / 2 - inset, -1, joinery),
-      this.buildHorizontalEdge(width, -height / 2 + inset, 1, joinery),
-      this.buildVerticalEdge(-width / 2 + inset, height, 1, joinery),
-      this.buildVerticalEdge(width / 2 - inset, height, -1, joinery),
+  buildPanelOutline(width, height, joinery, edges) {
+    const outline = [new THREE.Vector2(-width / 2, height / 2)];
+    let current = outline[0];
+
+    const segments = [
+      { side: "top", length: width, role: edges.top || "plain" },
+      { side: "right", length: height, role: edges.right || "plain" },
+      { side: "bottom", length: width, role: edges.bottom || "plain" },
+      { side: "left", length: height, role: edges.left || "plain" },
     ];
+
+    for (const segment of segments) {
+      const edgePoints = this.buildEdgePoints(current, segment.side, segment.length, segment.role, joinery);
+      edgePoints.forEach((point) => outline.push(point));
+      current = outline[outline.length - 1];
+    }
+
+    return this.dedupePath(outline);
   }
 
-  buildHorizontalEdge(width, y, inwardSign, joinery) {
-    const startX = -width / 2 + joinery.edgeInset;
-    const endX = width / 2 - joinery.edgeInset;
-    const length = Math.max(endX - startX, 0.1);
+  buildEdgePoints(start, side, length, role, joinery) {
+    const axis = this.axisVector(side);
+    const normal = this.normalVector(side);
     const segments = [];
+
+    if (joinery.type === "plain" || role === "plain") {
+      return [new THREE.Vector2(start.x + axis.x * length, start.y + axis.y * length)];
+    }
+
     const teeth = this.countJoinerySegments(length, joinery.pitch);
     const span = length / teeth;
+    const offset = role === "male" ? joinery.depth : -joinery.depth;
 
-    let currentX = startX;
-    segments.push(new THREE.Vector2(currentX, y));
+    let cursor = new THREE.Vector2(start.x, start.y);
 
     for (let index = 0; index < teeth; index += 1) {
-      const nextX = startX + (index + 1) * span;
+      const next = new THREE.Vector2(start.x + axis.x * span * (index + 1), start.y + axis.y * span * (index + 1));
       if (index % 2 === 0) {
         if (joinery.type === "dovetail") {
-          segments.push(new THREE.Vector2(currentX + span * 0.22, y + inwardSign * joinery.depth));
-          segments.push(new THREE.Vector2(currentX + span * 0.78, y + inwardSign * joinery.depth));
-          segments.push(new THREE.Vector2(nextX, y));
+          const p1 = new THREE.Vector2(
+            cursor.x + axis.x * span * 0.18 + normal.x * offset,
+            cursor.y + axis.y * span * 0.18 + normal.y * offset
+          );
+          const p2 = new THREE.Vector2(
+            cursor.x + axis.x * span * 0.82 + normal.x * offset,
+            cursor.y + axis.y * span * 0.82 + normal.y * offset
+          );
+          segments.push(p1, p2, next);
         } else {
-          segments.push(new THREE.Vector2(currentX, y + inwardSign * joinery.depth));
-          segments.push(new THREE.Vector2(nextX, y + inwardSign * joinery.depth));
-          segments.push(new THREE.Vector2(nextX, y));
+          const p1 = new THREE.Vector2(cursor.x + normal.x * offset, cursor.y + normal.y * offset);
+          const p2 = new THREE.Vector2(next.x + normal.x * offset, next.y + normal.y * offset);
+          segments.push(p1, p2, next);
         }
       } else {
-        segments.push(new THREE.Vector2(nextX, y));
+        segments.push(next);
       }
-      currentX = nextX;
+      cursor = next;
     }
 
     return this.dedupePath(segments);
   }
 
-  buildVerticalEdge(x, height, inwardSign, joinery) {
-    const startY = -height / 2 + joinery.edgeInset;
-    const endY = height / 2 - joinery.edgeInset;
-    const length = Math.max(endY - startY, 0.1);
-    const segments = [];
-    const teeth = this.countJoinerySegments(length, joinery.pitch);
-    const span = length / teeth;
+  axisVector(side) {
+    const vectors = {
+      top: new THREE.Vector2(1, 0),
+      right: new THREE.Vector2(0, -1),
+      bottom: new THREE.Vector2(-1, 0),
+      left: new THREE.Vector2(0, 1),
+    };
+    return vectors[side];
+  }
 
-    let currentY = startY;
-    segments.push(new THREE.Vector2(x, currentY));
-
-    for (let index = 0; index < teeth; index += 1) {
-      const nextY = startY + (index + 1) * span;
-      if (index % 2 === 0) {
-        if (joinery.type === "dovetail") {
-          segments.push(new THREE.Vector2(x + inwardSign * joinery.depth, currentY + span * 0.22));
-          segments.push(new THREE.Vector2(x + inwardSign * joinery.depth, currentY + span * 0.78));
-          segments.push(new THREE.Vector2(x, nextY));
-        } else {
-          segments.push(new THREE.Vector2(x + inwardSign * joinery.depth, currentY));
-          segments.push(new THREE.Vector2(x + inwardSign * joinery.depth, nextY));
-          segments.push(new THREE.Vector2(x, nextY));
-        }
-      } else {
-        segments.push(new THREE.Vector2(x, nextY));
-      }
-      currentY = nextY;
-    }
-
-    return this.dedupePath(segments);
+  normalVector(side) {
+    const normals = {
+      top: new THREE.Vector2(0, 1),
+      right: new THREE.Vector2(1, 0),
+      bottom: new THREE.Vector2(0, -1),
+      left: new THREE.Vector2(-1, 0),
+    };
+    return normals[side];
   }
 
   countJoinerySegments(length, pitch) {
@@ -337,16 +412,6 @@ class WiseBoxPreview {
       const previous = path[index - 1];
       return previous.x !== point.x || previous.y !== point.y;
     });
-  }
-
-  mapPointToPlane(plane, a, b, offset) {
-    if (plane === "xy") {
-      return new THREE.Vector3(a, b, offset);
-    }
-    if (plane === "xz") {
-      return new THREE.Vector3(a, offset, b);
-    }
-    return new THREE.Vector3(offset, b, a);
   }
 
   resize() {
