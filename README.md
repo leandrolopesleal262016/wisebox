@@ -121,6 +121,6 @@ pytest
 ## Observacoes tecnicas
 
 - Os arquivos gerados sao salvos em `static/generated/`.
-- No Docker, `static/generated/` fica montado como volume local para persistir os arquivos entre reinicios do container.
+- No Docker, `static/generated/` usa um volume nomeado do Docker para persistir os arquivos entre reinicios do container e evitar problemas de permissao no host.
 - O preview 3D desta versao mostra volume, proporcao e espessura. Os dentes detalhados do encaixe ficam no arquivo vetorial.
 - O projeto foi estruturado para permitir uma integracao futura com `Boxes.py`, mas esta entrega usa um motor vetorial nativo para manter instalacao e execucao simples no Windows.
