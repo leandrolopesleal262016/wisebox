@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, send_from_directory, url_for
@@ -14,8 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__)
     app.config.update(
-        SECRET_KEY="wisebox-dev",
-        GENERATED_DIR=BASE_DIR / "static" / "generated",
+        SECRET_KEY=os.getenv("SECRET_KEY", "wisebox-dev"),
+        GENERATED_DIR=Path(os.getenv("GENERATED_DIR", str(BASE_DIR / "static" / "generated"))),
         MAX_CONTENT_LENGTH=1024 * 1024,
     )
 
@@ -27,6 +28,10 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.get("/")
     def index() -> str:
         return render_template("index.html")
+
+    @app.get("/healthz")
+    def healthz():
+        return jsonify({"ok": True, "status": "healthy"})
 
     @app.post("/api/preview-data")
     def preview_data():
@@ -83,4 +88,8 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host=os.getenv("FLASK_HOST", "127.0.0.1"),
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG", "0") == "1",
+    )
