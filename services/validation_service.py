@@ -11,9 +11,6 @@ BOX_TYPES = {
     "open_box": "Caixa aberta",
     "closed_box": "Caixa fechada",
     "lidded_box": "Caixa com tampa",
-    "tray": "Bandeja",
-    "drawer": "Gaveta",
-    "flex_box": "Caixa com flex cut",
 }
 
 JOINT_TYPES = {
@@ -41,11 +38,11 @@ class BoxRequest:
 
     @property
     def has_lid(self) -> bool:
-        return self.box_type in {"closed_box", "lidded_box", "flex_box"}
+        return self.box_type in {"closed_box", "lidded_box"}
 
     @property
     def open_top(self) -> bool:
-        return self.box_type in {"open_box", "tray", "drawer"}
+        return self.box_type in {"open_box", "lidded_box"}
 
     def to_preview_payload(self) -> dict[str, object]:
         return {
@@ -61,8 +58,6 @@ class BoxRequest:
             "tolerance": round(self.tolerance_mm, 3),
             "hasLid": self.has_lid,
             "openTop": self.open_top,
-            "hasDrawerShell": self.box_type == "drawer",
-            "isFlex": self.box_type == "flex_box",
         }
 
 
@@ -120,9 +115,6 @@ def validate_box_request(payload: dict) -> BoxRequest:
         raise ValidationError("A espessura precisa estar entre 1 mm e 20 mm.")
     if min(width_mm, depth_mm, height_mm) <= thickness_mm * 2:
         raise ValidationError("As dimensoes sao pequenas demais para a espessura informada.")
-
-    if box_type == "tray" and height_mm > min(width_mm, depth_mm):
-        raise ValidationError("Bandejas devem ter altura menor que largura e profundidade.")
 
     return BoxRequest(
         box_type=box_type,

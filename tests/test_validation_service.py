@@ -58,3 +58,21 @@ def test_validate_box_request_rejects_invalid_kerf():
                 "exportFormat": "svg",
             }
         )
+
+
+def test_validate_box_request_rejects_removed_box_types():
+    with pytest.raises(ValidationError):
+        validate_box_request(
+            {
+                "boxType": "drawer",
+                "width": 120,
+                "height": 100,
+                "depth": 120,
+                "thickness": 3,
+                "kerf": 0.12,
+                "tolerance": 0.1,
+                "jointType": "finger",
+                "unit": "mm",
+                "exportFormat": "svg",
+            }
+        )

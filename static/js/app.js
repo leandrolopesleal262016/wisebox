@@ -93,13 +93,13 @@ window.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function renderLatestPreview(panels) {
+  function renderLatestPreview(panels, options = {}) {
     if (!latestPreviewBase) {
       return;
     }
     const payload = getPayload();
     const previewData = buildPreviewData(latestPreviewBase, payload);
-    preview.setData(previewData);
+    preview.setData(previewData, { preserveCamera: options.preserveCamera || false });
     updateStats(previewData, panels);
   }
 
@@ -119,7 +119,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     explodeSlider.value = String(startValue);
     updateExplodeControl();
-    renderLatestPreview();
+    renderLatestPreview(undefined, { preserveCamera: true });
 
     const tick = (now) => {
       const progress = Math.min((now - startTime) / duration, 1);
@@ -127,7 +127,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const value = Math.round(startValue + (endValue - startValue) * eased);
       explodeSlider.value = String(value);
       updateExplodeControl();
-      renderLatestPreview();
+      renderLatestPreview(undefined, { preserveCamera: true });
 
       if (progress < 1) {
         explodeAnimationFrame = window.requestAnimationFrame(tick);
@@ -155,8 +155,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function estimatePanelCount(boxType) {
-    if (boxType === "drawer") return 10;
-    if (boxType === "open_box" || boxType === "tray") return 5;
+    if (boxType === "open_box") return 5;
     return 6;
   }
 
@@ -243,7 +242,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!latestPreviewBase || previewModeInput.value !== "exploded") {
       return;
     }
-    renderLatestPreview();
+    renderLatestPreview(undefined, { preserveCamera: true });
   });
 
   previewButton.addEventListener("click", refreshPreview);

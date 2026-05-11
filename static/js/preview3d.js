@@ -76,7 +76,7 @@ class WiseBoxPreview {
     }
   }
 
-  setData(preview) {
+  setData(preview, options = {}) {
     this.clear();
     this.group.position.set(0, 0, 0);
 
@@ -121,7 +121,11 @@ class WiseBoxPreview {
       );
     });
 
-    this.fitCamera(mode);
+    if (options.preserveCamera) {
+      this.controls.update();
+    } else {
+      this.fitCamera(mode);
+    }
   }
 
   getExplodeFactor(value) {
@@ -157,16 +161,24 @@ class WiseBoxPreview {
       left: { plane: "yz", width: depth, height, thickness, x: -(width / 2 - thickness / 2), y: 0, z: 0, material: materials.body, joinery, edges: edgeSet.side },
       right: { plane: "yz", width: depth, height, thickness, x: width / 2 - thickness / 2, y: 0, z: 0, material: materials.body, joinery, edges: edgeSet.side },
       bottom: { plane: "xz", width, height: depth, thickness, x: 0, y: -(height / 2 - thickness / 2), z: 0, material: materials.body, joinery, edges: edgeSet.bottom },
-      top: { plane: "xz", width, height: depth, thickness, x: 0, y: height / 2 - thickness / 2, z: 0, material: materials.lid, joinery, edges: edgeSet.top },
+      top: {
+        plane: "xz",
+        width,
+        height: depth,
+        thickness,
+        x: 0,
+        y: preview.boxType === "lidded_box" ? height / 2 + thickness / 2 : height / 2 - thickness / 2,
+        z: 0,
+        material: materials.lid,
+        joinery,
+        edges: edgeSet.top,
+      },
     };
 
     if (mode === "assembled") {
       panels.push(mounted.front, mounted.back, mounted.left, mounted.right, mounted.bottom);
-      if (!preview.openTop) {
+      if (preview.hasLid) {
         panels.push(mounted.top);
-      }
-      if (preview.boxType === "drawer") {
-        panels.push(...this.buildDrawerMountedPanels(preview, width, height, depth, thickness, materials));
       }
       return panels;
     }
@@ -181,14 +193,11 @@ class WiseBoxPreview {
         { ...mounted.right, x: mounted.right.x + explode },
         { ...mounted.bottom, y: mounted.bottom.y - explode * 0.78 },
       );
-      if (!preview.openTop && preview.boxType !== "lidded_box") {
+      if (preview.boxType === "closed_box") {
         panels.push({ ...mounted.top, y: mounted.top.y + explode * 0.88 });
       }
       if (preview.boxType === "lidded_box") {
-        panels.push({ ...mounted.top, y: height / 2 + explode * 1.7, material: materials.lid });
-      }
-      if (preview.boxType === "drawer") {
-        panels.push(...this.buildDrawerExplodedPanels(preview, width, height, depth, thickness, materials, explode));
+        panels.push({ ...mounted.top, y: mounted.top.y + explode * 1.18, material: materials.lid });
       }
       return panels;
     }
@@ -197,6 +206,9 @@ class WiseBoxPreview {
   }
 
   buildActualEdgeSets(preview) {
+    const topPanelEdges = preview.boxType === "closed_box"
+      ? { top: "male", right: "male", bottom: "male", left: "male" }
+      : { top: "plain", right: "plain", bottom: "plain", left: "plain" };
     return {
       front: {
         top: preview.openTop ? "plain" : "female",
@@ -211,7 +223,7 @@ class WiseBoxPreview {
         left: "male",
       },
       bottom: { top: "male", right: "male", bottom: "male", left: "male" },
-      top: { top: "male", right: "male", bottom: "male", left: "male" },
+      top: topPanelEdges,
     };
   }
 
@@ -303,21 +315,8 @@ class WiseBoxPreview {
       { plane: "xz", width, height: depth, thickness, material: materials.body, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.bottom },
     ];
 
-    if (!preview.openTop) {
+    if (preview.hasLid) {
       panels.push({ plane: "xz", width, height: depth, thickness, material: materials.lid, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.top });
-    }
-    if (preview.boxType === "drawer") {
-      const shellThickness = thickness * 0.92;
-      const shellWidth = width + shellThickness * 2.3;
-      const shellHeight = height + shellThickness * 1.4;
-      const shellDepth = depth + shellThickness * 1.4;
-      const shellJoinery = this.buildJoinerySpec(preview, shellThickness);
-      panels.push(
-        { plane: "xz", width: shellWidth, height: shellHeight, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "plain", right: "female", bottom: "female", left: "female" } },
-        { plane: "xz", width: shellDepth, height: shellHeight, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "plain", right: "male", bottom: "female", left: "male" } },
-        { plane: "xz", width: shellDepth, height: shellHeight, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "plain", right: "male", bottom: "female", left: "male" } },
-        { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "male", right: "male", bottom: "male", left: "male" } }
-      );
     }
 
     const layout = [];

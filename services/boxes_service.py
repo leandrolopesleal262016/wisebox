@@ -163,7 +163,6 @@ def build_panels(box_request: BoxRequest) -> list[PanelShape]:
         edges: dict[str, str],
         *,
         kind: str = "panel",
-        flex: bool = False,
     ) -> PanelShape:
         return create_panel(
             name=name,
@@ -175,43 +174,28 @@ def build_panels(box_request: BoxRequest) -> list[PanelShape]:
             kerf_mm=kerf,
             tolerance_mm=tolerance,
             kind=kind,
-            flex=flex,
         )
 
-    base_front_edges = {"top": "female", "right": "female", "bottom": "female", "left": "female"}
-    base_side_edges = {"top": "female", "right": "male", "bottom": "female", "left": "male"}
+    top_role = "female" if box_request.box_type == "closed_box" else "plain"
+    base_front_edges = {"top": top_role, "right": "female", "bottom": "female", "left": "female"}
+    base_side_edges = {"top": top_role, "right": "male", "bottom": "female", "left": "male"}
     base_top_edges = {"top": "male", "right": "male", "bottom": "male", "left": "male"}
+    loose_lid_edges = {"top": "plain", "right": "plain", "bottom": "plain", "left": "plain"}
 
     panels.extend(
         [
             face("Frente", width, height, base_front_edges),
             face("Costas", width, height, base_front_edges),
-            face("Lateral esquerda", depth, height, base_side_edges, flex=box_request.box_type == "flex_box"),
-            face("Lateral direita", depth, height, base_side_edges, flex=box_request.box_type == "flex_box"),
+            face("Lateral esquerda", depth, height, base_side_edges),
+            face("Lateral direita", depth, height, base_side_edges),
             face("Base", width, depth, base_top_edges),
         ]
     )
 
-    if box_request.box_type in {"closed_box", "lidded_box", "flex_box"}:
-        lid_kind = "lid" if box_request.box_type == "lidded_box" else "panel"
-        panels.append(face("Tampa", width, depth, base_top_edges, kind=lid_kind))
-
-    if box_request.box_type == "drawer":
-        shell_width = width + 2 * (thickness + tolerance)
-        shell_height = height + thickness + tolerance
-        shell_depth = depth + thickness + tolerance
-        shell_front_edges = {"top": "female", "right": "female", "bottom": "female", "left": "female"}
-        shell_side_edges = {"top": "female", "right": "male", "bottom": "female", "left": "male"}
-        shell_top_edges = {"top": "male", "right": "male", "bottom": "male", "left": "male"}
-        panels.extend(
-            [
-                face("Corpo superior", shell_width, shell_depth, shell_top_edges, kind="drawer-shell"),
-                face("Corpo inferior", shell_width, shell_depth, shell_top_edges, kind="drawer-shell"),
-                face("Corpo lateral esquerda", shell_depth, shell_height, shell_side_edges, kind="drawer-shell"),
-                face("Corpo lateral direita", shell_depth, shell_height, shell_side_edges, kind="drawer-shell"),
-                face("Corpo traseiro", shell_width, shell_height, shell_front_edges, kind="drawer-shell"),
-            ]
-        )
+    if box_request.box_type == "closed_box":
+        panels.append(face("Tampa", width, depth, base_top_edges))
+    elif box_request.box_type == "lidded_box":
+        panels.append(face("Tampa", width, depth, loose_lid_edges, kind="lid"))
 
     return panels
 

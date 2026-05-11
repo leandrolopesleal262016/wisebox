@@ -352,35 +352,6 @@ body {
   color: var(--text-muted);
 }
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  color: var(--text-muted);
-  font-size: 0.88rem;
-}
-
-.legend-box {
-  display: inline-block;
-  width: 0.9rem;
-  height: 0.9rem;
-  margin-right: 0.4rem;
-  border-radius: 0.2rem;
-  vertical-align: middle;
-}
-
-.legend-box.is-body {
-  background: rgba(255, 197, 126, 0.85);
-}
-
-.legend-box.is-lid {
-  background: rgba(131, 211, 175, 0.9);
-}
-
-.legend-box.is-shell {
-  background: rgba(123, 190, 255, 0.9);
-}
-
 @media (max-width: 1199px) {
   .preview-canvas {
     min-height: 420px;
