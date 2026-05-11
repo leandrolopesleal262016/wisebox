@@ -76,21 +76,18 @@ def build_edge_points(
         segments.append(edge_start)
 
     cursor = edge_start
-    starts_with_cut = side in {"right", "left"}
+    offset = joinery.depth if role == "male" else -joinery.depth
 
     for index in range(teeth):
         next_point = (
             edge_start[0] + axis_x * span * (index + 1),
             edge_start[1] + axis_y * span * (index + 1),
         )
-        if role == "female":
-            cut_in = index % 2 == 0 if starts_with_cut else index % 2 == 1
-        else:
-            cut_in = index % 2 == 1 if starts_with_cut else index % 2 == 0
+        cut_in = index % 2 == 1
 
         if cut_in:
-            p1 = (cursor[0] - normal_x * joinery.depth, cursor[1] - normal_y * joinery.depth)
-            p2 = (next_point[0] - normal_x * joinery.depth, next_point[1] - normal_y * joinery.depth)
+            p1 = (cursor[0] + normal_x * offset, cursor[1] + normal_y * offset)
+            p2 = (next_point[0] + normal_x * offset, next_point[1] + normal_y * offset)
             segments.extend([p1, p2, next_point])
         else:
             segments.append(next_point)
@@ -120,6 +117,33 @@ def build_panel_outline(
         outline.extend(points)
         current = outline[-1]
     return dedupe_path(outline)
+
+
+def active_intervals(length: float, joinery: Joinery) -> list[tuple[float, float]]:
+    inset = min(joinery.edge_inset, length / 4)
+    inner_length = length - inset * 2
+    teeth = count_joinery_segments(inner_length, joinery.pitch)
+    span = inner_length / teeth
+    intervals: list[tuple[float, float]] = []
+    for index in range(teeth):
+        if index % 2 == 1:
+            intervals.append((round(inset + span * index, 6), round(inset + span * (index + 1), 6)))
+    return intervals
+
+
+def first_offset_point(
+    side: str,
+    length: float,
+    role: str,
+    joinery: Joinery,
+) -> tuple[float, float]:
+    points = build_edge_points((0.0, 0.0), side, length, role, joinery)
+    for point in points:
+        if side in {"top", "bottom"} and abs(point[1]) > 1e-9:
+            return point
+        if side in {"left", "right"} and abs(point[0]) > 1e-9:
+            return point
+    raise AssertionError("Nenhum ponto com deslocamento encontrado.")
 
 
 def same_point(a: tuple[float, float], b: tuple[float, float], epsilon: float = 1e-9) -> bool:
@@ -233,3 +257,27 @@ def test_open_box_preview_outlines_are_simple_polygons():
     for outline in outlines.values():
         assert same_point(outline[0], outline[-1])
         assert not polygon_has_self_intersection(outline[:-1])
+
+
+def test_male_and_female_edges_offset_in_opposite_directions():
+    joinery = build_joinery(thickness=0.06, kerf=0.12)
+    male_top_point = first_offset_point("top", 4.0, "male", joinery)
+    female_top_point = first_offset_point("top", 4.0, "female", joinery)
+    male_left_point = first_offset_point("left", 3.0, "male", joinery)
+    female_left_point = first_offset_point("left", 3.0, "female", joinery)
+
+    assert male_top_point[1] > 0
+    assert female_top_point[1] < 0
+    assert male_left_point[0] < 0
+    assert female_left_point[0] > 0
+
+
+def test_lid_and_wall_edges_share_the_same_joinery_phase():
+    joinery = build_joinery(thickness=0.06, kerf=0.12)
+    width_intervals = active_intervals(length=4.0, joinery=joinery)
+    depth_intervals = active_intervals(length=3.0, joinery=joinery)
+    width_inset = min(joinery.edge_inset, 4.0 / 4)
+    depth_inset = min(joinery.edge_inset, 3.0 / 4)
+
+    assert width_intervals[0][0] > width_inset
+    assert depth_intervals[0][0] > depth_inset

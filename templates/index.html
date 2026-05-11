@@ -30,7 +30,7 @@
               </div>
 
               <form id="boxForm" class="row g-3" novalidate>
-                <input id="previewMode" name="previewMode" type="hidden" value="assembled">
+                <input id="previewMode" name="previewMode" type="hidden" value="exploded">
                 <div class="col-12">
                   <label class="form-label" for="boxType">Tipo de caixa</label>
                   <select class="form-select" id="boxType" name="boxType">
@@ -149,16 +149,16 @@
                 </div>
                 <div class="preview-tools">
                   <div class="view-mode-toggle" aria-label="Modo do preview 3D">
-                    <button class="view-mode-btn is-active" data-preview-mode="assembled" type="button">Montada</button>
-                    <button class="view-mode-btn" data-preview-mode="exploded" type="button">Explodida</button>
+                    <button class="view-mode-btn" data-preview-mode="assembled" type="button">Montada</button>
+                    <button class="view-mode-btn is-active" data-preview-mode="exploded" type="button">Explodida</button>
                     <button class="view-mode-btn" data-preview-mode="flat" type="button">Pecas</button>
                   </div>
                   <div id="explodeControl" class="explode-control" aria-label="Controle da vista explodida">
                     <div class="explode-control-head">
                       <span>Afastamento</span>
-                      <strong id="explodeValue">100%</strong>
+                      <strong id="explodeValue">1%</strong>
                     </div>
-                    <input id="explodeSlider" class="form-range explode-slider" type="range" min="1" max="220" step="1" value="100">
+                    <input id="explodeSlider" class="form-range explode-slider" type="range" min="1" max="220" step="1" value="1">
                   </div>
                   <div class="legend">
                     <span><i class="legend-box is-body"></i> Corpo</span>

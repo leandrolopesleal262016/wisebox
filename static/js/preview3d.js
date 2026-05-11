@@ -552,32 +552,29 @@ class WiseBoxPreview {
     }
 
     let cursor = edgeStart.clone();
+    const offset = role === "male" ? joinery.depth : -joinery.depth;
 
     for (let index = 0; index < teeth; index += 1) {
       const next = new THREE.Vector2(
         edgeStart.x + axis.x * span * (index + 1),
         edgeStart.y + axis.y * span * (index + 1)
       );
-      const startsWithCut = side === "right" || side === "left";
-      const cutIn =
-        role === "female"
-          ? startsWithCut ? index % 2 === 0 : index % 2 === 1
-          : startsWithCut ? index % 2 === 1 : index % 2 === 0;
+      const isJoinSegment = index % 2 === 1;
 
-      if (cutIn) {
+      if (isJoinSegment) {
         if (joinery.type === "dovetail") {
           const p1 = new THREE.Vector2(
-            cursor.x + axis.x * span * 0.18 - normal.x * joinery.depth,
-            cursor.y + axis.y * span * 0.18 - normal.y * joinery.depth
+            cursor.x + axis.x * span * 0.18 + normal.x * offset,
+            cursor.y + axis.y * span * 0.18 + normal.y * offset
           );
           const p2 = new THREE.Vector2(
-            cursor.x + axis.x * span * 0.82 - normal.x * joinery.depth,
-            cursor.y + axis.y * span * 0.82 - normal.y * joinery.depth
+            cursor.x + axis.x * span * 0.82 + normal.x * offset,
+            cursor.y + axis.y * span * 0.82 + normal.y * offset
           );
           segments.push(p1, p2, next);
         } else {
-          const p1 = new THREE.Vector2(cursor.x - normal.x * joinery.depth, cursor.y - normal.y * joinery.depth);
-          const p2 = new THREE.Vector2(next.x - normal.x * joinery.depth, next.y - normal.y * joinery.depth);
+          const p1 = new THREE.Vector2(cursor.x + normal.x * offset, cursor.y + normal.y * offset);
+          const p2 = new THREE.Vector2(next.x + normal.x * offset, next.y + normal.y * offset);
           segments.push(p1, p2, next);
         }
       } else {

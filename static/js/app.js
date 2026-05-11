@@ -45,6 +45,8 @@ window.addEventListener("DOMContentLoaded", () => {
   let previewTimer = null;
   let latestDownloads = {};
   let latestPreviewBase = null;
+  let explodeAnimationFrame = null;
+  let shouldAnimateExplodedIntro = true;
 
   function getPayload(overrideFormat) {
     const formData = new FormData(form);
@@ -68,6 +70,13 @@ window.addEventListener("DOMContentLoaded", () => {
     return Number(explodeSlider.value) / 100;
   }
 
+  function cancelExplodeAnimation() {
+    if (explodeAnimationFrame) {
+      window.cancelAnimationFrame(explodeAnimationFrame);
+      explodeAnimationFrame = null;
+    }
+  }
+
   function updateExplodeControl() {
     const isExploded = previewModeInput.value === "exploded";
     explodeSlider.disabled = !isExploded;
@@ -82,6 +91,52 @@ window.addEventListener("DOMContentLoaded", () => {
       previewMode: payload.previewMode,
       explodeFactor: getExplodeFactor(),
     };
+  }
+
+  function renderLatestPreview(panels) {
+    if (!latestPreviewBase) {
+      return;
+    }
+    const payload = getPayload();
+    const previewData = buildPreviewData(latestPreviewBase, payload);
+    preview.setData(previewData);
+    updateStats(previewData, panels);
+  }
+
+  function animateExplodedIntro() {
+    if (!latestPreviewBase || previewModeInput.value !== "exploded") {
+      shouldAnimateExplodedIntro = false;
+      return;
+    }
+
+    cancelExplodeAnimation();
+    shouldAnimateExplodedIntro = false;
+
+    const startValue = 1;
+    const endValue = 20;
+    const duration = 820;
+    const startTime = performance.now();
+
+    explodeSlider.value = String(startValue);
+    updateExplodeControl();
+    renderLatestPreview();
+
+    const tick = (now) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const value = Math.round(startValue + (endValue - startValue) * eased);
+      explodeSlider.value = String(value);
+      updateExplodeControl();
+      renderLatestPreview();
+
+      if (progress < 1) {
+        explodeAnimationFrame = window.requestAnimationFrame(tick);
+      } else {
+        explodeAnimationFrame = null;
+      }
+    };
+
+    explodeAnimationFrame = window.requestAnimationFrame(tick);
   }
 
   function setStatus(message, tone) {
@@ -133,10 +188,11 @@ window.addEventListener("DOMContentLoaded", () => {
       const payload = getPayload();
       const data = await postJson("/api/preview-data", payload);
       latestPreviewBase = data.preview;
-      const previewData = buildPreviewData(data.preview, payload);
-      preview.setData(previewData);
-      updateStats(previewData);
+      renderLatestPreview();
       setStatus("Preview atualizado com sucesso.", "is-success");
+      if (shouldAnimateExplodedIntro && payload.previewMode === "exploded") {
+        animateExplodedIntro();
+      }
     } catch (error) {
       setStatus(error.message, "is-error");
     }
@@ -149,9 +205,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const data = await postJson("/api/generate", payload);
       latestDownloads[requestedFormat] = data.downloadUrl;
       latestPreviewBase = data.preview;
-      const previewData = buildPreviewData(data.preview, payload);
-      preview.setData(previewData);
-      updateStats(previewData, data.panels.length);
+      renderLatestPreview(data.panels.length);
       fileHint.textContent = `Ultimo arquivo: ${data.filename} (${data.engine}).`;
       setStatus(`Arquivo ${requestedFormat.toUpperCase()} gerado com sucesso.`, "is-success");
       if (downloadAfterCreate) {
@@ -172,6 +226,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   previewModeButtons.forEach((button) => {
     button.addEventListener("click", () => {
+      cancelExplodeAnimation();
+      shouldAnimateExplodedIntro = false;
       const selectedMode = button.dataset.previewMode;
       previewModeInput.value = selectedMode;
       previewModeButtons.forEach((item) => item.classList.toggle("is-active", item === button));
@@ -181,14 +237,13 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   explodeSlider.addEventListener("input", () => {
+    cancelExplodeAnimation();
+    shouldAnimateExplodedIntro = false;
     updateExplodeControl();
     if (!latestPreviewBase || previewModeInput.value !== "exploded") {
       return;
     }
-    const payload = getPayload();
-    const previewData = buildPreviewData(latestPreviewBase, payload);
-    preview.setData(previewData);
-    updateStats(previewData);
+    renderLatestPreview();
   });
 
   previewButton.addEventListener("click", refreshPreview);
@@ -202,14 +257,15 @@ window.addEventListener("DOMContentLoaded", () => {
   downloadPdfButton.addEventListener("click", () => generateFile("pdf", true));
 
   resetButton.addEventListener("click", () => {
+    cancelExplodeAnimation();
     form.reset();
     document.getElementById("boxType").value = "closed_box";
     document.getElementById("exportFormat").value = "svg";
     document.getElementById("jointType").value = "finger";
     document.getElementById("materialType").value = "mdf";
-    previewModeInput.value = "assembled";
-    previewModeButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.previewMode === "assembled"));
-    explodeSlider.value = "100";
+    previewModeInput.value = "exploded";
+    previewModeButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.previewMode === "exploded"));
+    explodeSlider.value = "1";
     document.getElementById("width").value = "180";
     document.getElementById("height").value = "120";
     document.getElementById("depth").value = "140";
@@ -218,6 +274,7 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("tolerance").value = "0.1";
     latestDownloads = {};
     latestPreviewBase = null;
+    shouldAnimateExplodedIntro = true;
     updateExplodeControl();
     fileHint.textContent = 'Use "Gerar Arquivo" para criar o formato selecionado.';
     refreshPreview();
