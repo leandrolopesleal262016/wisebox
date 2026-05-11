@@ -111,6 +111,78 @@ body {
   gap: 0.8rem;
 }
 
+.explode-control {
+  width: min(18rem, 100%);
+  padding: 0.8rem 0.95rem 0.72rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  opacity: 0.46;
+  transition: opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.explode-control.is-active {
+  opacity: 1;
+  border-color: rgba(255, 178, 74, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.explode-control-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.explode-control-head strong {
+  color: var(--text);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.explode-slider {
+  margin: 0;
+}
+
+.explode-slider:disabled {
+  cursor: not-allowed;
+}
+
+.explode-slider::-webkit-slider-runnable-track {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 178, 74, 0.52));
+}
+
+.explode-slider::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.3rem;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-strong), #fff0c7);
+  box-shadow: 0 0.2rem 0.7rem rgba(255, 178, 74, 0.26);
+  -webkit-appearance: none;
+}
+
+.explode-slider::-moz-range-track {
+  height: 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 178, 74, 0.52));
+}
+
+.explode-slider::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-strong), #fff0c7);
+  box-shadow: 0 0.2rem 0.7rem rgba(255, 178, 74, 0.26);
+}
+
 .view-mode-toggle {
   display: inline-flex;
   padding: 0.25rem;

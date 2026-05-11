@@ -15,6 +15,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const previewModeInput = document.getElementById("previewMode");
   const previewModeButtons = document.querySelectorAll("[data-preview-mode]");
   const previewModeNote = document.getElementById("previewModeNote");
+  const explodeControl = document.getElementById("explodeControl");
+  const explodeSlider = document.getElementById("explodeSlider");
+  const explodeValue = document.getElementById("explodeValue");
 
   const preview = new window.WiseBoxPreview("previewCanvas");
   const presets = {
@@ -41,6 +44,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   let previewTimer = null;
   let latestDownloads = {};
+  let latestPreviewBase = null;
 
   function getPayload(overrideFormat) {
     const formData = new FormData(form);
@@ -57,6 +61,26 @@ window.addEventListener("DOMContentLoaded", () => {
       previewMode: formData.get("previewMode"),
       unit: formData.get("unit"),
       exportFormat: overrideFormat || formData.get("exportFormat"),
+    };
+  }
+
+  function getExplodeFactor() {
+    return Number(explodeSlider.value) / 100;
+  }
+
+  function updateExplodeControl() {
+    const isExploded = previewModeInput.value === "exploded";
+    explodeSlider.disabled = !isExploded;
+    explodeControl.classList.toggle("is-active", isExploded);
+    explodeValue.textContent = `${explodeSlider.value}%`;
+  }
+
+  function buildPreviewData(previewBase, payload) {
+    return {
+      ...previewBase,
+      materialType: payload.materialType,
+      previewMode: payload.previewMode,
+      explodeFactor: getExplodeFactor(),
     };
   }
 
@@ -108,7 +132,8 @@ window.addEventListener("DOMContentLoaded", () => {
     try {
       const payload = getPayload();
       const data = await postJson("/api/preview-data", payload);
-      const previewData = { ...data.preview, materialType: payload.materialType, previewMode: payload.previewMode };
+      latestPreviewBase = data.preview;
+      const previewData = buildPreviewData(data.preview, payload);
       preview.setData(previewData);
       updateStats(previewData);
       setStatus("Preview atualizado com sucesso.", "is-success");
@@ -123,7 +148,8 @@ window.addEventListener("DOMContentLoaded", () => {
       const payload = getPayload(requestedFormat);
       const data = await postJson("/api/generate", payload);
       latestDownloads[requestedFormat] = data.downloadUrl;
-      const previewData = { ...data.preview, materialType: payload.materialType, previewMode: payload.previewMode };
+      latestPreviewBase = data.preview;
+      const previewData = buildPreviewData(data.preview, payload);
       preview.setData(previewData);
       updateStats(previewData, data.panels.length);
       fileHint.textContent = `Ultimo arquivo: ${data.filename} (${data.engine}).`;
@@ -149,8 +175,20 @@ window.addEventListener("DOMContentLoaded", () => {
       const selectedMode = button.dataset.previewMode;
       previewModeInput.value = selectedMode;
       previewModeButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+      updateExplodeControl();
       refreshPreview();
     });
+  });
+
+  explodeSlider.addEventListener("input", () => {
+    updateExplodeControl();
+    if (!latestPreviewBase || previewModeInput.value !== "exploded") {
+      return;
+    }
+    const payload = getPayload();
+    const previewData = buildPreviewData(latestPreviewBase, payload);
+    preview.setData(previewData);
+    updateStats(previewData);
   });
 
   previewButton.addEventListener("click", refreshPreview);
@@ -171,6 +209,7 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("materialType").value = "mdf";
     previewModeInput.value = "assembled";
     previewModeButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.previewMode === "assembled"));
+    explodeSlider.value = "100";
     document.getElementById("width").value = "180";
     document.getElementById("height").value = "120";
     document.getElementById("depth").value = "140";
@@ -178,6 +217,8 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("kerf").value = "0.12";
     document.getElementById("tolerance").value = "0.1";
     latestDownloads = {};
+    latestPreviewBase = null;
+    updateExplodeControl();
     fileHint.textContent = 'Use "Gerar Arquivo" para criar o formato selecionado.';
     refreshPreview();
   });
@@ -193,5 +234,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  updateExplodeControl();
   refreshPreview();
 });

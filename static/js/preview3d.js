@@ -81,6 +81,7 @@ class WiseBoxPreview {
     this.group.position.set(0, 0, 0);
 
     const mode = preview.previewMode || "assembled";
+    const explodeFactor = this.getExplodeFactor(preview.explodeFactor);
     const scale = 0.02;
     const width = preview.width * scale;
     const height = preview.height * scale;
@@ -97,6 +98,7 @@ class WiseBoxPreview {
       thickness,
       joinery,
       materials,
+      explodeFactor,
     });
 
     descriptors.forEach((descriptor) => {
@@ -122,6 +124,14 @@ class WiseBoxPreview {
     this.fitCamera(mode);
   }
 
+  getExplodeFactor(value) {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      return 1;
+    }
+    return THREE.MathUtils.clamp(numeric, 0.4, 2.2);
+  }
+
   buildJoinerySpec(preview, thickness) {
     const joineryDepth = Math.min(Math.max(thickness * 0.96, 0.05), 0.26);
     const edgeInset = Math.max(joineryDepth * 0.26, 0.01);
@@ -134,7 +144,7 @@ class WiseBoxPreview {
     };
   }
 
-  buildPanelDescriptors({ preview, mode, width, height, depth, thickness, joinery, materials }) {
+  buildPanelDescriptors({ preview, mode, width, height, depth, thickness, joinery, materials, explodeFactor }) {
     const actualEdges = this.buildActualEdgeSets(preview);
     const mountedEdges = this.buildMountedEdgeSets(preview);
     const edgeSet = mode === "assembled" ? mountedEdges : actualEdges;
@@ -162,7 +172,8 @@ class WiseBoxPreview {
     }
 
     if (mode === "exploded") {
-      const explode = Math.max(thickness * 3.8, Math.min(Math.max(width, height, depth) * 0.22, 1.45));
+      const explodeBase = Math.max(thickness * 3.8, Math.min(Math.max(width, height, depth) * 0.22, 1.45));
+      const explode = explodeBase * explodeFactor;
       panels.push(
         { ...mounted.front, z: mounted.front.z - explode },
         { ...mounted.back, z: mounted.back.z + explode },
