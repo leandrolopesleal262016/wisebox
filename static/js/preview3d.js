@@ -164,17 +164,17 @@ class WiseBoxPreview {
     if (mode === "exploded") {
       const explode = Math.max(thickness * 3.8, Math.min(Math.max(width, height, depth) * 0.22, 1.45));
       panels.push(
-        { ...mounted.front, z: mounted.front.z - explode, rotationY: -0.08 },
-        { ...mounted.back, z: mounted.back.z + explode, rotationY: 0.08 },
-        { ...mounted.left, x: mounted.left.x - explode, rotationY: -0.34 },
-        { ...mounted.right, x: mounted.right.x + explode, rotationY: 0.34 },
-        { ...mounted.bottom, y: mounted.bottom.y - explode * 0.78, rotationX: -0.03 },
+        { ...mounted.front, z: mounted.front.z - explode },
+        { ...mounted.back, z: mounted.back.z + explode },
+        { ...mounted.left, x: mounted.left.x - explode },
+        { ...mounted.right, x: mounted.right.x + explode },
+        { ...mounted.bottom, y: mounted.bottom.y - explode * 0.78 },
       );
       if (!preview.openTop && preview.boxType !== "lidded_box") {
-        panels.push({ ...mounted.top, y: mounted.top.y + explode * 0.88, rotationX: 0.03 });
+        panels.push({ ...mounted.top, y: mounted.top.y + explode * 0.88 });
       }
       if (preview.boxType === "lidded_box") {
-        panels.push({ ...mounted.top, y: height / 2 + explode * 1.7, material: materials.lid, rotationX: 0.03 });
+        panels.push({ ...mounted.top, y: height / 2 + explode * 1.7, material: materials.lid });
       }
       if (preview.boxType === "drawer") {
         panels.push(...this.buildDrawerExplodedPanels(preview, width, height, depth, thickness, materials, explode));
@@ -275,9 +275,9 @@ class WiseBoxPreview {
     this.group.position.x = -offset * 0.45;
     return [
       { plane: "xy", width: shellWidth, height: shellHeight, thickness: shellThickness, x: offset, y: 0, z: -(shellDepth / 2 - shellThickness / 2) - explode * 0.55, material: materials.shell, joinery: shellJoinery, edges: shellEdges },
-      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset - (shellWidth / 2 - shellThickness / 2) - explode * 0.5, y: 0, z: 0, rotationY: -0.26, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
-      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset + (shellWidth / 2 - shellThickness / 2) + explode * 0.5, y: 0, z: 0, rotationY: 0.26, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
-      { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, x: offset, y: -(shellHeight / 2 - shellThickness / 2) - explode * 0.6, z: 0, rotationX: -0.03, material: materials.shell, joinery: shellJoinery, edges: shellBottomEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset - (shellWidth / 2 - shellThickness / 2) - explode * 0.5, y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset + (shellWidth / 2 - shellThickness / 2) + explode * 0.5, y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, x: offset, y: -(shellHeight / 2 - shellThickness / 2) - explode * 0.6, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellBottomEdges },
     ];
   }
 
@@ -525,17 +525,33 @@ class WiseBoxPreview {
       return [new THREE.Vector2(start.x + axis.x * length, start.y + axis.y * length)];
     }
 
-    const teeth = this.countJoinerySegments(length, joinery.pitch);
-    const span = length / teeth;
+    const inset = Math.min(joinery.edgeInset, length / 4);
+    const innerLength = length - inset * 2;
+    if (innerLength <= 0) {
+      return [new THREE.Vector2(start.x + axis.x * length, start.y + axis.y * length)];
+    }
 
-    let cursor = new THREE.Vector2(start.x, start.y);
+    const teeth = this.countJoinerySegments(innerLength, joinery.pitch);
+    const span = innerLength / teeth;
+    const edgeStart = new THREE.Vector2(start.x + axis.x * inset, start.y + axis.y * inset);
+    const edgeEnd = new THREE.Vector2(start.x + axis.x * length, start.y + axis.y * length);
+
+    if (edgeStart.x !== start.x || edgeStart.y !== start.y) {
+      segments.push(edgeStart);
+    }
+
+    let cursor = edgeStart.clone();
 
     for (let index = 0; index < teeth; index += 1) {
-      const next = new THREE.Vector2(start.x + axis.x * span * (index + 1), start.y + axis.y * span * (index + 1));
+      const next = new THREE.Vector2(
+        edgeStart.x + axis.x * span * (index + 1),
+        edgeStart.y + axis.y * span * (index + 1)
+      );
+      const startsWithCut = side === "right" || side === "left";
       const cutIn =
         role === "female"
-          ? index % 2 === 0
-          : index % 2 === 1;
+          ? startsWithCut ? index % 2 === 0 : index % 2 === 1
+          : startsWithCut ? index % 2 === 1 : index % 2 === 0;
 
       if (cutIn) {
         if (joinery.type === "dovetail") {
@@ -557,6 +573,10 @@ class WiseBoxPreview {
         segments.push(next);
       }
       cursor = next;
+    }
+
+    if (segments.length === 0 || segments[segments.length - 1].x !== edgeEnd.x || segments[segments.length - 1].y !== edgeEnd.y) {
+      segments.push(edgeEnd);
     }
 
     return this.dedupePath(segments);
