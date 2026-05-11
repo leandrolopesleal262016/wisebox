@@ -179,17 +179,20 @@ class WiseBoxPreview {
           roughness: 0.9,
           metalness: 0.02,
           clearcoat: 0.04,
+          side: THREE.DoubleSide,
         }),
         lid: new THREE.MeshPhysicalMaterial({
           color: 0xc8a26c,
           roughness: 0.86,
           metalness: 0.02,
           clearcoat: 0.04,
+          side: THREE.DoubleSide,
         }),
         shell: new THREE.MeshPhysicalMaterial({
           color: 0xa98454,
           roughness: 0.92,
           metalness: 0.02,
+          side: THREE.DoubleSide,
         }),
       },
       plywood: {
@@ -198,17 +201,20 @@ class WiseBoxPreview {
           roughness: 0.8,
           metalness: 0.02,
           clearcoat: 0.08,
+          side: THREE.DoubleSide,
         }),
         lid: new THREE.MeshPhysicalMaterial({
           color: 0xd8ac74,
           roughness: 0.78,
           metalness: 0.02,
           clearcoat: 0.08,
+          side: THREE.DoubleSide,
         }),
         shell: new THREE.MeshPhysicalMaterial({
           color: 0xb98d57,
           roughness: 0.82,
           metalness: 0.02,
+          side: THREE.DoubleSide,
         }),
       },
       acrylic: {
@@ -222,6 +228,7 @@ class WiseBoxPreview {
           opacity: 0.9,
           clearcoat: 0.9,
           ior: 1.46,
+          side: THREE.DoubleSide,
         }),
         lid: new THREE.MeshPhysicalMaterial({
           color: 0xb3e5ff,
@@ -233,6 +240,7 @@ class WiseBoxPreview {
           opacity: 0.92,
           clearcoat: 1.0,
           ior: 1.46,
+          side: THREE.DoubleSide,
         }),
         shell: new THREE.MeshPhysicalMaterial({
           color: 0x7dcaf8,
@@ -244,6 +252,7 @@ class WiseBoxPreview {
           opacity: 0.86,
           clearcoat: 0.9,
           ior: 1.46,
+          side: THREE.DoubleSide,
         }),
       },
       cardboard: {
@@ -251,16 +260,19 @@ class WiseBoxPreview {
           color: 0x8e6c45,
           roughness: 0.97,
           metalness: 0.01,
+          side: THREE.DoubleSide,
         }),
         lid: new THREE.MeshPhysicalMaterial({
           color: 0xa37a4f,
           roughness: 0.97,
           metalness: 0.01,
+          side: THREE.DoubleSide,
         }),
         shell: new THREE.MeshPhysicalMaterial({
           color: 0x7d5d39,
           roughness: 0.98,
           metalness: 0.01,
+          side: THREE.DoubleSide,
         }),
       },
     };
