@@ -30,6 +30,7 @@
               </div>
 
               <form id="boxForm" class="row g-3" novalidate>
+                <input id="previewMode" name="previewMode" type="hidden" value="assembled">
                 <div class="col-12">
                   <label class="form-label" for="boxType">Tipo de caixa</label>
                   <select class="form-select" id="boxType" name="boxType">
@@ -146,10 +147,17 @@
                   <h2>Preview 3D</h2>
                   <p>Visualizacao montada com proporcoes reais antes da exportacao.</p>
                 </div>
-                <div class="legend">
-                  <span><i class="legend-box is-body"></i> Corpo</span>
-                  <span><i class="legend-box is-lid"></i> Tampa</span>
-                  <span><i class="legend-box is-shell"></i> Gaveta</span>
+                <div class="preview-tools">
+                  <div class="view-mode-toggle" aria-label="Modo do preview 3D">
+                    <button class="view-mode-btn is-active" data-preview-mode="assembled" type="button">Montada</button>
+                    <button class="view-mode-btn" data-preview-mode="exploded" type="button">Explodida</button>
+                    <button class="view-mode-btn" data-preview-mode="flat" type="button">Pecas</button>
+                  </div>
+                  <div class="legend">
+                    <span><i class="legend-box is-body"></i> Corpo</span>
+                    <span><i class="legend-box is-lid"></i> Tampa</span>
+                    <span><i class="legend-box is-shell"></i> Gaveta</span>
+                  </div>
                 </div>
               </div>
 
@@ -166,7 +174,7 @@
                 </article>
                 <article>
                   <h3>Observacao</h3>
-                  <p>O preview 3D desta primeira versao prioriza volume, espessura e leitura visual.</p>
+                  <p id="previewModeNote">Modo montado mostra a caixa final. Use o modo explodido para revelar encaixes escondidos.</p>
                 </article>
               </div>
             </section>

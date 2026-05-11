@@ -1,6 +1,8 @@
 import * as THREE from "../vendor/three/three.module.min.js";
 import { OrbitControls } from "../vendor/three/controls/OrbitControls.js";
 
+const FLOOR_Y = -2.2;
+
 class WiseBoxPreview {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
@@ -42,7 +44,7 @@ class WiseBoxPreview {
       })
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -2.2;
+    floor.position.y = FLOOR_Y;
     this.scene.add(floor);
 
     this.resize();
@@ -76,7 +78,9 @@ class WiseBoxPreview {
 
   setData(preview) {
     this.clear();
+    this.group.position.set(0, 0, 0);
 
+    const mode = preview.previewMode || "assembled";
     const scale = 0.02;
     const width = preview.width * scale;
     const height = preview.height * scale;
@@ -84,79 +88,35 @@ class WiseBoxPreview {
     const thickness = Math.max(preview.thickness * scale, 0.05);
     const joinery = this.buildJoinerySpec(preview, thickness);
     const materials = this.buildMaterialPack(preview.materialType || "mdf");
+    const descriptors = this.buildPanelDescriptors({
+      preview,
+      mode,
+      width,
+      height,
+      depth,
+      thickness,
+      joinery,
+      materials,
+    });
 
-    const frontEdges = {
-      top: "plain",
-      right: "female",
-      bottom: "plain",
-      left: "female",
-    };
-    const sideEdges = {
-      top: "plain",
-      right: "male",
-      bottom: "plain",
-      left: "male",
-    };
-    const horizontalEdges = { top: "plain", right: "plain", bottom: "plain", left: "plain" };
+    descriptors.forEach((descriptor) => {
+      this.group.add(
+        this.makePanel(
+          descriptor.plane,
+          descriptor.width,
+          descriptor.height,
+          descriptor.thickness,
+          descriptor.x,
+          descriptor.y,
+          descriptor.z,
+          descriptor.material,
+          descriptor.joinery,
+          descriptor.edges
+        )
+      );
+    });
 
-    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, -(depth / 2 - thickness / 2), materials.body, joinery, frontEdges));
-    this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, depth / 2 - thickness / 2, materials.body, joinery, frontEdges));
-    this.group.add(this.makePanel("yz", depth, height, thickness, -(width / 2 - thickness / 2), 0, 0, materials.body, joinery, sideEdges));
-    this.group.add(this.makePanel("yz", depth, height, thickness, width / 2 - thickness / 2, 0, 0, materials.body, joinery, sideEdges));
-    this.group.add(this.makePanel("xz", width, depth, thickness, 0, -(height / 2 - thickness / 2), 0, materials.body, joinery, horizontalEdges));
-
-    if (!preview.openTop) {
-      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 - thickness / 2, 0, materials.lid, joinery, horizontalEdges));
-    }
-
-    if (preview.boxType === "lidded_box") {
-      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 + thickness * 2.6, 0, materials.lid, joinery, horizontalEdges));
-    }
-
-    if (preview.boxType === "drawer") {
-      const shellThickness = thickness * 0.92;
-      const shellWidth = width + shellThickness * 2.3;
-      const shellHeight = height + shellThickness * 1.4;
-      const shellDepth = depth + shellThickness * 1.4;
-      const offset = width * 0.22;
-      const shellJoinery = this.buildJoinerySpec(preview, shellThickness);
-      const shellEdges = {
-        top: "plain",
-        right: "female",
-        bottom: "plain",
-        left: "female",
-      };
-      const shellSideEdges = {
-        top: "plain",
-        right: "male",
-        bottom: "plain",
-        left: "male",
-      };
-      const shellBottomEdges = { top: "plain", right: "plain", bottom: "plain", left: "plain" };
-      this.group.add(this.makePanel("xy", shellWidth, shellHeight, shellThickness, offset, 0, -(shellDepth / 2 - shellThickness / 2), materials.shell, shellJoinery, shellEdges));
-      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset - (shellWidth / 2 - shellThickness / 2), 0, 0, materials.shell, shellJoinery, shellSideEdges));
-      this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset + (shellWidth / 2 - shellThickness / 2), 0, 0, materials.shell, shellJoinery, shellSideEdges));
-      this.group.add(this.makePanel("xz", shellWidth, shellDepth, shellThickness, offset, -(shellHeight / 2 - shellThickness / 2), 0, materials.shell, shellJoinery, shellBottomEdges));
-      this.group.position.x = -offset * 0.5;
-    } else {
-      this.group.position.x = 0;
-    }
-
-    if (preview.isFlex) {
-      const slotMaterial = new THREE.LineBasicMaterial({ color: 0x21313c, transparent: true, opacity: 0.75 });
-      for (let i = -3; i <= 3; i += 1) {
-        const points = [
-          new THREE.Vector3(-width / 2 + width * 0.1 + i * width * 0.1, -height / 2 + thickness, depth / 2 + 0.001),
-          new THREE.Vector3(-width / 2 + width * 0.1 + i * width * 0.1, height / 2 - thickness, depth / 2 + 0.001),
-        ];
-        this.group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), slotMaterial.clone()));
-      }
-    }
-
-    const maxDim = Math.max(width, height, depth);
-    this.camera.position.set(maxDim * 1.48, maxDim * 1.14, maxDim * 1.58);
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
+    this.fitCamera(mode);
   }
 
   buildJoinerySpec(preview, thickness) {
@@ -169,6 +129,209 @@ class WiseBoxPreview {
       edgeInset,
       pitch,
     };
+  }
+
+  buildPanelDescriptors({ preview, mode, width, height, depth, thickness, joinery, materials }) {
+    const actualEdges = this.buildActualEdgeSets(preview);
+    const mountedEdges = this.buildMountedEdgeSets(preview);
+    const edgeSet = mode === "assembled" ? mountedEdges : actualEdges;
+
+    const panels = [];
+
+    const mounted = {
+      front: { plane: "xy", width, height, thickness, x: 0, y: 0, z: -(depth / 2 - thickness / 2), material: materials.body, joinery, edges: edgeSet.front },
+      back: { plane: "xy", width, height, thickness, x: 0, y: 0, z: depth / 2 - thickness / 2, material: materials.body, joinery, edges: edgeSet.front },
+      left: { plane: "yz", width: depth, height, thickness, x: -(width / 2 - thickness / 2), y: 0, z: 0, material: materials.body, joinery, edges: edgeSet.side },
+      right: { plane: "yz", width: depth, height, thickness, x: width / 2 - thickness / 2, y: 0, z: 0, material: materials.body, joinery, edges: edgeSet.side },
+      bottom: { plane: "xz", width, height: depth, thickness, x: 0, y: -(height / 2 - thickness / 2), z: 0, material: materials.body, joinery, edges: edgeSet.bottom },
+      top: { plane: "xz", width, height: depth, thickness, x: 0, y: height / 2 - thickness / 2, z: 0, material: materials.lid, joinery, edges: edgeSet.top },
+    };
+
+    if (mode === "assembled") {
+      panels.push(mounted.front, mounted.back, mounted.left, mounted.right, mounted.bottom);
+      if (!preview.openTop) {
+        panels.push(mounted.top);
+      }
+      if (preview.boxType === "drawer") {
+        panels.push(...this.buildDrawerMountedPanels(preview, width, height, depth, thickness, materials));
+      }
+      return panels;
+    }
+
+    if (mode === "exploded") {
+      const explode = Math.max(thickness * 3.8, Math.min(Math.max(width, height, depth) * 0.22, 1.45));
+      panels.push(
+        { ...mounted.front, z: mounted.front.z - explode },
+        { ...mounted.back, z: mounted.back.z + explode },
+        { ...mounted.left, x: mounted.left.x - explode },
+        { ...mounted.right, x: mounted.right.x + explode },
+        { ...mounted.bottom, y: mounted.bottom.y - explode * 0.78 },
+      );
+      if (!preview.openTop && preview.boxType !== "lidded_box") {
+        panels.push({ ...mounted.top, y: mounted.top.y + explode * 0.88 });
+      }
+      if (preview.boxType === "lidded_box") {
+        panels.push({ ...mounted.top, y: height / 2 + explode * 1.7, material: materials.lid });
+      }
+      if (preview.boxType === "drawer") {
+        panels.push(...this.buildDrawerExplodedPanels(preview, width, height, depth, thickness, materials, explode));
+      }
+      return panels;
+    }
+
+    return this.buildFlatPanels(preview, width, height, depth, thickness, materials, actualEdges);
+  }
+
+  buildActualEdgeSets(preview) {
+    return {
+      front: {
+        top: preview.openTop ? "plain" : "female",
+        right: "female",
+        bottom: "female",
+        left: "female",
+      },
+      side: {
+        top: preview.openTop ? "plain" : "female",
+        right: "male",
+        bottom: "female",
+        left: "male",
+      },
+      bottom: { top: "male", right: "male", bottom: "male", left: "male" },
+      top: { top: "male", right: "male", bottom: "male", left: "male" },
+    };
+  }
+
+  buildMountedEdgeSets(preview) {
+    return {
+      front: {
+        top: "plain",
+        right: "female",
+        bottom: "plain",
+        left: "female",
+      },
+      side: {
+        top: "plain",
+        right: "male",
+        bottom: "plain",
+        left: "male",
+      },
+      bottom: { top: "plain", right: "plain", bottom: "plain", left: "plain" },
+      top: { top: "plain", right: "plain", bottom: "plain", left: "plain" },
+    };
+  }
+
+  buildDrawerMountedPanels(preview, width, height, depth, thickness, materials) {
+    const shellThickness = thickness * 0.92;
+    const shellWidth = width + shellThickness * 2.3;
+    const shellHeight = height + shellThickness * 1.4;
+    const shellDepth = depth + shellThickness * 1.4;
+    const offset = width * 0.22;
+    const shellJoinery = this.buildJoinerySpec(preview, shellThickness);
+    const shellEdges = {
+      top: "plain",
+      right: "female",
+      bottom: "plain",
+      left: "female",
+    };
+    const shellSideEdges = {
+      top: "plain",
+      right: "male",
+      bottom: "plain",
+      left: "male",
+    };
+    const shellBottomEdges = { top: "plain", right: "plain", bottom: "plain", left: "plain" };
+    this.group.position.x = -offset * 0.5;
+    return [
+      { plane: "xy", width: shellWidth, height: shellHeight, thickness: shellThickness, x: offset, y: 0, z: -(shellDepth / 2 - shellThickness / 2), material: materials.shell, joinery: shellJoinery, edges: shellEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset - (shellWidth / 2 - shellThickness / 2), y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset + (shellWidth / 2 - shellThickness / 2), y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, x: offset, y: -(shellHeight / 2 - shellThickness / 2), z: 0, material: materials.shell, joinery: shellJoinery, edges: shellBottomEdges },
+    ];
+  }
+
+  buildDrawerExplodedPanels(preview, width, height, depth, thickness, materials, explode) {
+    const shellThickness = thickness * 0.92;
+    const shellWidth = width + shellThickness * 2.3;
+    const shellHeight = height + shellThickness * 1.4;
+    const shellDepth = depth + shellThickness * 1.4;
+    const offset = width * 0.3;
+    const shellJoinery = this.buildJoinerySpec(preview, shellThickness);
+    const shellEdges = {
+      top: "plain",
+      right: "female",
+      bottom: "female",
+      left: "female",
+    };
+    const shellSideEdges = {
+      top: "plain",
+      right: "male",
+      bottom: "female",
+      left: "male",
+    };
+    const shellBottomEdges = { top: "male", right: "male", bottom: "male", left: "male" };
+    this.group.position.x = -offset * 0.45;
+    return [
+      { plane: "xy", width: shellWidth, height: shellHeight, thickness: shellThickness, x: offset, y: 0, z: -(shellDepth / 2 - shellThickness / 2) - explode * 0.55, material: materials.shell, joinery: shellJoinery, edges: shellEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset - (shellWidth / 2 - shellThickness / 2) - explode * 0.5, y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset + (shellWidth / 2 - shellThickness / 2) + explode * 0.5, y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, x: offset, y: -(shellHeight / 2 - shellThickness / 2) - explode * 0.6, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellBottomEdges },
+    ];
+  }
+
+  buildFlatPanels(preview, width, height, depth, thickness, materials, edges) {
+    const flatY = FLOOR_Y + thickness / 2 + 0.03;
+    const gap = Math.max(thickness * 2.2, 0.28);
+    const panels = [
+      { plane: "xz", width, height, thickness, material: materials.body, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.front },
+      { plane: "xz", width, height, thickness, material: materials.body, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.front },
+      { plane: "xz", width: depth, height, thickness, material: materials.body, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.side },
+      { plane: "xz", width: depth, height, thickness, material: materials.body, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.side },
+      { plane: "xz", width, height: depth, thickness, material: materials.body, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.bottom },
+    ];
+
+    if (!preview.openTop) {
+      panels.push({ plane: "xz", width, height: depth, thickness, material: materials.lid, joinery: this.buildJoinerySpec(preview, thickness), edges: edges.top });
+    }
+    if (preview.boxType === "drawer") {
+      const shellThickness = thickness * 0.92;
+      const shellWidth = width + shellThickness * 2.3;
+      const shellHeight = height + shellThickness * 1.4;
+      const shellDepth = depth + shellThickness * 1.4;
+      const shellJoinery = this.buildJoinerySpec(preview, shellThickness);
+      panels.push(
+        { plane: "xz", width: shellWidth, height: shellHeight, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "plain", right: "female", bottom: "female", left: "female" } },
+        { plane: "xz", width: shellDepth, height: shellHeight, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "plain", right: "male", bottom: "female", left: "male" } },
+        { plane: "xz", width: shellDepth, height: shellHeight, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "plain", right: "male", bottom: "female", left: "male" } },
+        { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, material: materials.shell, joinery: shellJoinery, edges: { top: "male", right: "male", bottom: "male", left: "male" } }
+      );
+    }
+
+    const layout = [];
+    const rowTarget = Math.max(3.8, Math.sqrt(panels.reduce((sum, panel) => sum + panel.width * panel.height, 0)) * 1.3);
+    let cursorX = 0;
+    let cursorZ = 0;
+    let rowDepth = 0;
+
+    panels.forEach((panel) => {
+      if (cursorX > 0 && cursorX + panel.width > rowTarget) {
+        cursorX = 0;
+        cursorZ += rowDepth + gap;
+        rowDepth = 0;
+      }
+      layout.push({ ...panel, x: cursorX + panel.width / 2, y: flatY, z: cursorZ + panel.height / 2 });
+      cursorX += panel.width + gap;
+      rowDepth = Math.max(rowDepth, panel.height);
+    });
+
+    const minX = Math.min(...layout.map((panel) => panel.x - panel.width / 2), 0);
+    const maxX = Math.max(...layout.map((panel) => panel.x + panel.width / 2), 0);
+    const minZ = Math.min(...layout.map((panel) => panel.z - panel.height / 2), 0);
+    const maxZ = Math.max(...layout.map((panel) => panel.z + panel.height / 2), 0);
+    const shiftX = (minX + maxX) / 2;
+    const shiftZ = (minZ + maxZ) / 2;
+    this.group.position.set(-shiftX, 0, -shiftZ);
+
+    return layout;
   }
 
   buildMaterialPack(materialType) {
@@ -428,6 +591,24 @@ class WiseBoxPreview {
       const previous = path[index - 1];
       return previous.x !== point.x || previous.y !== point.y;
     });
+  }
+
+  fitCamera(mode) {
+    const bounds = new THREE.Box3().setFromObject(this.group);
+    const center = bounds.getCenter(new THREE.Vector3());
+    const size = bounds.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 1);
+
+    if (mode === "flat") {
+      this.camera.position.set(center.x, center.y + maxDim * 1.7, center.z + maxDim * 0.95);
+    } else if (mode === "exploded") {
+      this.camera.position.set(center.x + maxDim * 1.35, center.y + maxDim * 1.02, center.z + maxDim * 1.4);
+    } else {
+      this.camera.position.set(center.x + maxDim * 1.28, center.y + maxDim * 0.92, center.z + maxDim * 1.3);
+    }
+
+    this.controls.target.copy(center);
+    this.controls.update();
   }
 
   resize() {

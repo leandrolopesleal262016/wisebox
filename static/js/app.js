@@ -12,6 +12,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const materialStat = document.getElementById("materialStat");
   const summaryText = document.getElementById("summaryText");
   const fileHint = document.getElementById("fileHint");
+  const previewModeInput = document.getElementById("previewMode");
+  const previewModeButtons = document.querySelectorAll("[data-preview-mode]");
+  const previewModeNote = document.getElementById("previewModeNote");
 
   const preview = new window.WiseBoxPreview("previewCanvas");
   const presets = {
@@ -24,6 +27,16 @@ window.addEventListener("DOMContentLoaded", () => {
     plywood: "Compensado",
     acrylic: "Acrilico",
     cardboard: "Papelao",
+  };
+  const previewModeLabels = {
+    assembled: "Montada",
+    exploded: "Explodida",
+    flat: "Pecas",
+  };
+  const previewModeNotes = {
+    assembled: "Modo montado mostra a caixa final. Encaixes ocultos pelo fechamento nao sao forçados visualmente.",
+    exploded: "Modo explodido separa tampa, fundo e laterais para revelar encaixes escondidos sem distorcer o conjunto.",
+    flat: "Modo pecas mostra os painéis separados, com o contorno real de corte e todos os encaixes visíveis.",
   };
 
   let previewTimer = null;
@@ -41,6 +54,7 @@ window.addEventListener("DOMContentLoaded", () => {
       tolerance: formData.get("tolerance"),
       jointType: formData.get("jointType"),
       materialType: formData.get("materialType"),
+      previewMode: formData.get("previewMode"),
       unit: formData.get("unit"),
       exportFormat: overrideFormat || formData.get("exportFormat"),
     };
@@ -57,7 +71,8 @@ window.addEventListener("DOMContentLoaded", () => {
     volumeStat.textContent = `${volumeCm3.toFixed(1)} cm3`;
     panelStat.textContent = String(panels || estimatePanelCount(previewData.boxType));
     materialStat.textContent = `${materialLabels[previewData.materialType] || "Material"} ${previewData.thickness.toFixed(2)} mm`;
-    summaryText.textContent = `${previewData.boxTypeLabel} em ${(materialLabels[previewData.materialType] || "material").toLowerCase()}, com ${previewData.jointTypeLabel.toLowerCase()}, ${previewData.width.toFixed(0)} x ${previewData.height.toFixed(0)} x ${previewData.depth.toFixed(0)} mm.`;
+    summaryText.textContent = `${previewModeLabels[previewData.previewMode] || "Montada"}: ${previewData.boxTypeLabel} em ${(materialLabels[previewData.materialType] || "material").toLowerCase()}, com ${previewData.jointTypeLabel.toLowerCase()}, ${previewData.width.toFixed(0)} x ${previewData.height.toFixed(0)} x ${previewData.depth.toFixed(0)} mm.`;
+    previewModeNote.textContent = previewModeNotes[previewData.previewMode] || previewModeNotes.assembled;
   }
 
   function estimatePanelCount(boxType) {
@@ -91,8 +106,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   async function refreshPreview() {
     try {
-      const data = await postJson("/api/preview-data", getPayload());
-      const previewData = { ...data.preview, materialType: getPayload().materialType };
+      const payload = getPayload();
+      const data = await postJson("/api/preview-data", payload);
+      const previewData = { ...data.preview, materialType: payload.materialType, previewMode: payload.previewMode };
       preview.setData(previewData);
       updateStats(previewData);
       setStatus("Preview atualizado com sucesso.", "is-success");
@@ -107,7 +123,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const payload = getPayload(requestedFormat);
       const data = await postJson("/api/generate", payload);
       latestDownloads[requestedFormat] = data.downloadUrl;
-      const previewData = { ...data.preview, materialType: payload.materialType };
+      const previewData = { ...data.preview, materialType: payload.materialType, previewMode: payload.previewMode };
       preview.setData(previewData);
       updateStats(previewData, data.panels.length);
       fileHint.textContent = `Ultimo arquivo: ${data.filename} (${data.engine}).`;
@@ -128,6 +144,15 @@ window.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("input", schedulePreview);
   form.addEventListener("change", schedulePreview);
 
+  previewModeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const selectedMode = button.dataset.previewMode;
+      previewModeInput.value = selectedMode;
+      previewModeButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+      refreshPreview();
+    });
+  });
+
   previewButton.addEventListener("click", refreshPreview);
   generateButton.addEventListener("click", () => {
     const format = document.getElementById("exportFormat").value;
@@ -144,6 +169,8 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("exportFormat").value = "svg";
     document.getElementById("jointType").value = "finger";
     document.getElementById("materialType").value = "mdf";
+    previewModeInput.value = "assembled";
+    previewModeButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.previewMode === "assembled"));
     document.getElementById("width").value = "180";
     document.getElementById("height").value = "120";
     document.getElementById("depth").value = "140";
