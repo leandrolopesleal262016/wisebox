@@ -86,31 +86,31 @@ class WiseBoxPreview {
     const materials = this.buildMaterialPack(preview.materialType || "mdf");
 
     const frontEdges = {
-      top: preview.openTop ? "plain" : "female",
+      top: "plain",
       right: "female",
-      bottom: "female",
+      bottom: "plain",
       left: "female",
     };
     const sideEdges = {
-      top: preview.openTop ? "plain" : "female",
+      top: "plain",
       right: "male",
-      bottom: "female",
+      bottom: "plain",
       left: "male",
     };
-    const lidEdges = { top: "male", right: "male", bottom: "male", left: "male" };
+    const horizontalEdges = { top: "plain", right: "plain", bottom: "plain", left: "plain" };
 
     this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, -(depth / 2 - thickness / 2), materials.body, joinery, frontEdges));
     this.group.add(this.makePanel("xy", width, height, thickness, 0, 0, depth / 2 - thickness / 2, materials.body, joinery, frontEdges));
     this.group.add(this.makePanel("yz", depth, height, thickness, -(width / 2 - thickness / 2), 0, 0, materials.body, joinery, sideEdges));
     this.group.add(this.makePanel("yz", depth, height, thickness, width / 2 - thickness / 2, 0, 0, materials.body, joinery, sideEdges));
-    this.group.add(this.makePanel("xz", width, depth, thickness, 0, -(height / 2 - thickness / 2), 0, materials.body, joinery, lidEdges));
+    this.group.add(this.makePanel("xz", width, depth, thickness, 0, -(height / 2 - thickness / 2), 0, materials.body, joinery, horizontalEdges));
 
     if (!preview.openTop) {
-      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 - thickness / 2, 0, materials.lid, joinery, lidEdges));
+      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 - thickness / 2, 0, materials.lid, joinery, horizontalEdges));
     }
 
     if (preview.boxType === "lidded_box") {
-      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 + thickness * 2.6, 0, materials.lid, joinery, lidEdges));
+      this.group.add(this.makePanel("xz", width, depth, thickness, 0, height / 2 + thickness * 2.6, 0, materials.lid, joinery, horizontalEdges));
     }
 
     if (preview.boxType === "drawer") {
@@ -123,16 +123,16 @@ class WiseBoxPreview {
       const shellEdges = {
         top: "plain",
         right: "female",
-        bottom: "female",
+        bottom: "plain",
         left: "female",
       };
       const shellSideEdges = {
         top: "plain",
         right: "male",
-        bottom: "female",
+        bottom: "plain",
         left: "male",
       };
-      const shellBottomEdges = { top: "male", right: "male", bottom: "male", left: "male" };
+      const shellBottomEdges = { top: "plain", right: "plain", bottom: "plain", left: "plain" };
       this.group.add(this.makePanel("xy", shellWidth, shellHeight, shellThickness, offset, 0, -(shellDepth / 2 - shellThickness / 2), materials.shell, shellJoinery, shellEdges));
       this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset - (shellWidth / 2 - shellThickness / 2), 0, 0, materials.shell, shellJoinery, shellSideEdges));
       this.group.add(this.makePanel("yz", shellDepth, shellHeight, shellThickness, offset + (shellWidth / 2 - shellThickness / 2), 0, 0, materials.shell, shellJoinery, shellSideEdges));
