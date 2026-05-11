@@ -1,4 +1,4 @@
-(function () {
+window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("boxForm");
   const previewButton = document.getElementById("previewButton");
   const generateButton = document.getElementById("generateButton");
@@ -145,4 +145,4 @@
   });
 
   refreshPreview();
-})();
+});
