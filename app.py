@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request, send_from_directory, url_for
+from flask import Flask, current_app, jsonify, render_template, request, send_from_directory, url_for
 from werkzeug.exceptions import BadRequest, NotFound
 
 from services.boxes_service import BoxGenerationError, generate_artifact
@@ -80,6 +80,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.errorhandler(NotFound)
     def handle_not_found(error: NotFound):
         return jsonify({"ok": False, "error": str(error)}), 404
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error: Exception):
+        current_app.logger.exception("Unhandled application error", exc_info=error)
+        return jsonify({"ok": False, "error": "Erro interno ao processar a requisicao."}), 500
 
     return app
 

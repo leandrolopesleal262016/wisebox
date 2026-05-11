@@ -57,3 +57,15 @@ def test_generate_route_creates_pdf_file(client):
     download_response = client.get(data["downloadUrl"])
     assert download_response.status_code == 200
     assert download_response.data.startswith(b"%PDF")
+
+
+def test_generate_route_creates_dxf_file(client):
+    response = client.post("/api/generate", json=build_payload(exportFormat="dxf"))
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert data["format"] == "dxf"
+
+    download_response = client.get(data["downloadUrl"])
+    assert download_response.status_code == 200
+    assert b"SECTION" in download_response.data

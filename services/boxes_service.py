@@ -74,37 +74,42 @@ class GeneratedArtifact:
 
 
 def generate_artifact(box_request: BoxRequest, output_dir: Path) -> GeneratedArtifact:
-    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    layout = build_layout(box_request)
-    filename = _build_filename(box_request)
-    destination = output_dir / filename
+        layout = build_layout(box_request)
+        filename = _build_filename(box_request)
+        destination = output_dir / filename
 
-    if box_request.export_format == "svg":
-        destination.write_bytes(export_svg(layout))
-    elif box_request.export_format == "pdf":
-        destination.write_bytes(export_pdf(layout))
-    elif box_request.export_format == "dxf":
-        destination.write_bytes(export_dxf(layout))
-    else:
-        raise BoxGenerationError("Formato de exportacao nao suportado.")
+        if box_request.export_format == "svg":
+            destination.write_bytes(export_svg(layout))
+        elif box_request.export_format == "pdf":
+            destination.write_bytes(export_pdf(layout))
+        elif box_request.export_format == "dxf":
+            destination.write_bytes(export_dxf(layout))
+        else:
+            raise BoxGenerationError("Formato de exportacao nao suportado.")
 
-    panel_summary = [
-        {
-            "name": panel.name,
-            "width": round(panel.width_mm, 2),
-            "height": round(panel.height_mm, 2),
-            "kind": panel.metadata.get("kind", "panel"),
-        }
-        for panel in layout.panels
-    ]
+        panel_summary = [
+            {
+                "name": panel.name,
+                "width": round(panel.width_mm, 2),
+                "height": round(panel.height_mm, 2),
+                "kind": panel.metadata.get("kind", "panel"),
+            }
+            for panel in layout.panels
+        ]
 
-    return GeneratedArtifact(
-        filename=filename,
-        export_format=box_request.export_format,
-        engine="native-wisebox",
-        panel_summary=panel_summary,
-    )
+        return GeneratedArtifact(
+            filename=filename,
+            export_format=box_request.export_format,
+            engine="native-wisebox",
+            panel_summary=panel_summary,
+        )
+    except BoxGenerationError:
+        raise
+    except Exception as exc:
+        raise BoxGenerationError(f"Falha ao gerar {box_request.export_format.upper()}: {exc}") from exc
 
 
 def build_layout(box_request: BoxRequest) -> Layout:
@@ -395,7 +400,7 @@ def export_pdf(layout: Layout) -> bytes:
                 drawing.lineTo(x, y)
             if path.closed:
                 drawing.close()
-    pdf.drawPath(drawing, stroke=1, fill=0)
+            pdf.drawPath(drawing, stroke=1, fill=0)
 
     pdf.showPage()
     pdf.save()
