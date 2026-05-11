@@ -109,6 +109,9 @@ class WiseBoxPreview {
           descriptor.x,
           descriptor.y,
           descriptor.z,
+          descriptor.rotationX || 0,
+          descriptor.rotationY || 0,
+          descriptor.rotationZ || 0,
           descriptor.material,
           descriptor.joinery,
           descriptor.edges
@@ -161,17 +164,17 @@ class WiseBoxPreview {
     if (mode === "exploded") {
       const explode = Math.max(thickness * 3.8, Math.min(Math.max(width, height, depth) * 0.22, 1.45));
       panels.push(
-        { ...mounted.front, z: mounted.front.z - explode },
-        { ...mounted.back, z: mounted.back.z + explode },
-        { ...mounted.left, x: mounted.left.x - explode },
-        { ...mounted.right, x: mounted.right.x + explode },
-        { ...mounted.bottom, y: mounted.bottom.y - explode * 0.78 },
+        { ...mounted.front, z: mounted.front.z - explode, rotationY: -0.08 },
+        { ...mounted.back, z: mounted.back.z + explode, rotationY: 0.08 },
+        { ...mounted.left, x: mounted.left.x - explode, rotationY: -0.34 },
+        { ...mounted.right, x: mounted.right.x + explode, rotationY: 0.34 },
+        { ...mounted.bottom, y: mounted.bottom.y - explode * 0.78, rotationX: -0.03 },
       );
       if (!preview.openTop && preview.boxType !== "lidded_box") {
-        panels.push({ ...mounted.top, y: mounted.top.y + explode * 0.88 });
+        panels.push({ ...mounted.top, y: mounted.top.y + explode * 0.88, rotationX: 0.03 });
       }
       if (preview.boxType === "lidded_box") {
-        panels.push({ ...mounted.top, y: height / 2 + explode * 1.7, material: materials.lid });
+        panels.push({ ...mounted.top, y: height / 2 + explode * 1.7, material: materials.lid, rotationX: 0.03 });
       }
       if (preview.boxType === "drawer") {
         panels.push(...this.buildDrawerExplodedPanels(preview, width, height, depth, thickness, materials, explode));
@@ -272,9 +275,9 @@ class WiseBoxPreview {
     this.group.position.x = -offset * 0.45;
     return [
       { plane: "xy", width: shellWidth, height: shellHeight, thickness: shellThickness, x: offset, y: 0, z: -(shellDepth / 2 - shellThickness / 2) - explode * 0.55, material: materials.shell, joinery: shellJoinery, edges: shellEdges },
-      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset - (shellWidth / 2 - shellThickness / 2) - explode * 0.5, y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
-      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset + (shellWidth / 2 - shellThickness / 2) + explode * 0.5, y: 0, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
-      { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, x: offset, y: -(shellHeight / 2 - shellThickness / 2) - explode * 0.6, z: 0, material: materials.shell, joinery: shellJoinery, edges: shellBottomEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset - (shellWidth / 2 - shellThickness / 2) - explode * 0.5, y: 0, z: 0, rotationY: -0.26, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "yz", width: shellDepth, height: shellHeight, thickness: shellThickness, x: offset + (shellWidth / 2 - shellThickness / 2) + explode * 0.5, y: 0, z: 0, rotationY: 0.26, material: materials.shell, joinery: shellJoinery, edges: shellSideEdges },
+      { plane: "xz", width: shellWidth, height: shellDepth, thickness: shellThickness, x: offset, y: -(shellHeight / 2 - shellThickness / 2) - explode * 0.6, z: 0, rotationX: -0.03, material: materials.shell, joinery: shellJoinery, edges: shellBottomEdges },
     ];
   }
 
@@ -443,9 +446,10 @@ class WiseBoxPreview {
     return materials[materialType] || materials.mdf;
   }
 
-  makePanel(plane, width, height, thickness, x, y, z, material, joinery, edges) {
+  makePanel(plane, width, height, thickness, x, y, z, rotationX, rotationY, rotationZ, material, joinery, edges) {
     const group = new THREE.Group();
     group.position.set(x, y, z);
+    group.rotation.set(rotationX, rotationY, rotationZ);
 
     const shape = this.buildPanelShape(width, height, joinery, edges);
     const geometry = new THREE.ExtrudeGeometry(shape, {
