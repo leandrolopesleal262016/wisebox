@@ -129,7 +129,7 @@ class WiseBoxPreview {
     if (Number.isNaN(numeric)) {
       return 1;
     }
-    return THREE.MathUtils.clamp(numeric, 0.4, 2.2);
+    return THREE.MathUtils.clamp(numeric, 0.01, 2.2);
   }
 
   buildJoinerySpec(preview, thickness) {
