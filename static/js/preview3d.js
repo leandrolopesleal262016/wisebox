@@ -231,15 +231,15 @@ class WiseBoxPreview {
     return {
       front: {
         top: "plain",
-        right: "female",
+        right: "plain",
         bottom: "plain",
-        left: "female",
+        left: "plain",
       },
       side: {
         top: "plain",
-        right: "male",
+        right: "plain",
         bottom: "plain",
-        left: "male",
+        left: "plain",
       },
       bottom: { top: "plain", right: "plain", bottom: "plain", left: "plain" },
       top: { top: "plain", right: "plain", bottom: "plain", left: "plain" },
